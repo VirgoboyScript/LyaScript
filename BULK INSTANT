@@ -1,0 +1,300 @@
+-- Roblox Custom GUI - BulkPurchase / BagasHub (Dynamic Resizing & Fixed Payload)
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local MainCorner = Instance.new("UICorner")
+local MainStroke = Instance.new("UIStroke")
+
+local TitleBar = Instance.new("Frame")
+local TitleBarCorner = Instance.new("UICorner")
+local TitleLabel = Instance.new("TextLabel")
+local CloseBtn = Instance.new("TextButton")
+local CloseCorner = Instance.new("UICorner")
+local MinimizeBtn = Instance.new("TextButton")
+local MinimizeCorner = Instance.new("UICorner")
+
+local ScrollContainer = Instance.new("ScrollingFrame")
+local UIListLayout = Instance.new("UIListLayout")
+local UIPadding = Instance.new("UIPadding")
+
+local ControlFrame = Instance.new("Frame")
+local AddBtn = Instance.new("TextButton")
+local RemoveBtn = Instance.new("TextButton")
+local BuyBtn = Instance.new("TextButton")
+
+-- Auto-Parenting
+local ParentContainer = (gethui and gethui()) or game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = ParentContainer
+ScreenGui.Name = "BagasHub_BulkPurchase_Refined"
+
+-- Main Frame (Biru Minimalis)
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 23, 42) -- Dark Navy
+MainFrame.Position = UDim2.new(0.38, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 270, 0, 130) -- Ukuran Awal sangat pas (1 ID)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = true
+
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+MainStroke.Color = Color3.fromRGB(37, 99, 235)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = MainFrame
+
+-- Title Bar
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 58, 138)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+
+TitleBarCorner.CornerRadius = UDim.new(0, 8)
+TitleBarCorner.Parent = TitleBar
+
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = TitleBar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Size = UDim2.new(1, -65, 1, 0)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "BulkPurchase / BagasHub"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 11
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close Button
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Parent = TitleBar
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38)
+CloseBtn.Position = UDim2.new(1, -24, 0, 4)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 10
+
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+-- Minimize Button
+MinimizeBtn.Name = "MinimizeBtn"
+MinimizeBtn.Parent = TitleBar
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(37, 99, 235)
+MinimizeBtn.Position = UDim2.new(1, -48, 0, 4)
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 12
+
+MinimizeCorner.CornerRadius = UDim.new(0, 4)
+MinimizeCorner.Parent = MinimizeBtn
+
+-- Dynamic Scrolling Container
+ScrollContainer.Name = "ScrollContainer"
+ScrollContainer.Parent = MainFrame
+ScrollContainer.BackgroundTransparency = 1
+ScrollContainer.Position = UDim2.new(0, 0, 0, 30)
+ScrollContainer.Size = UDim2.new(1, 0, 1, -78)
+ScrollContainer.ScrollBarThickness = 3
+ScrollContainer.ScrollBarImageColor3 = Color3.fromRGB(37, 99, 235)
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+UIListLayout.Parent = ScrollContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
+
+UIPadding.Parent = ScrollContainer
+UIPadding.PaddingTop = UDim.new(0, 8)
+UIPadding.PaddingLeft = UDim.new(0, 8)
+UIPadding.PaddingRight = UDim.new(0, 8)
+
+-- Control Frame Bottom
+ControlFrame.Name = "ControlFrame"
+ControlFrame.Parent = MainFrame
+ControlFrame.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+ControlFrame.Position = UDim2.new(0, 0, 1, -48)
+ControlFrame.Size = UDim2.new(1, 0, 0, 48)
+
+local function makeCorner(parent, r)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, r or 6)
+    c.Parent = parent
+    return c
+end
+
+AddBtn.Name = "AddBtn"
+AddBtn.Parent = ControlFrame
+AddBtn.Position = UDim2.new(0, 8, 0, 8)
+AddBtn.Size = UDim2.new(0, 32, 0, 32)
+AddBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+AddBtn.Font = Enum.Font.GothamBold
+AddBtn.Text = "+"
+AddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AddBtn.TextSize = 16
+makeCorner(AddBtn)
+
+RemoveBtn.Name = "RemoveBtn"
+RemoveBtn.Parent = ControlFrame
+RemoveBtn.Position = UDim2.new(0, 44, 0, 8)
+RemoveBtn.Size = UDim2.new(0, 32, 0, 32)
+RemoveBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+RemoveBtn.Font = Enum.Font.GothamBold
+RemoveBtn.Text = "-"
+RemoveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RemoveBtn.TextSize = 18
+makeCorner(RemoveBtn)
+
+BuyBtn.Name = "BuyBtn"
+BuyBtn.Parent = ControlFrame
+BuyBtn.Position = UDim2.new(0, 82, 0, 8)
+BuyBtn.Size = UDim2.new(1, -90, 0, 32)
+BuyBtn.BackgroundColor3 = Color3.fromRGB(37, 99, 235)
+BuyBtn.Font = Enum.Font.GothamBold
+BuyBtn.Text = "BUY ALL ITEMS"
+BuyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BuyBtn.TextSize = 11
+makeCorner(BuyBtn)
+
+----------------------------------------------------
+-- DYNAMIC RESIZING & INPUT SYSTEM
+----------------------------------------------------
+local inputBoxes = {}
+
+-- Fungsi Penyesuaian Ukuran GUI Sesuai Jumlah Kolom
+local function resizeGUI()
+    task.wait(0.02)
+    local count = #inputBoxes
+    local visibleRows = math.min(count, 5) -- Maksimal 5 baris yang muncul di layar
+    
+    -- Hitung tinggi yang dibutuhkan: TitleBar (30) + ControlFrame (48) + Padding (16) + (Tinggi Baris (30) * jumlah baris) + Spacing (6)
+    local targetHeight = 30 + 48 + 16 + (visibleRows * 30) + ((visibleRows - 1) * 6)
+    
+    MainFrame.Size = UDim2.new(0, 270, 0, targetHeight)
+    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 12)
+end
+
+local function addInputRow()
+    local index = #inputBoxes + 1
+    
+    local rowFrame = Instance.new("Frame")
+    rowFrame.Name = "Row_" .. index
+    rowFrame.Size = UDim2.new(1, -4, 0, 30)
+    rowFrame.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+    makeCorner(rowFrame, 6)
+    
+    local label = Instance.new("TextLabel")
+    label.Parent = rowFrame
+    label.Size = UDim2.new(0, 40, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamBold
+    label.Text = "ID " .. index .. ":"
+    label.TextColor3 = Color3.fromRGB(148, 163, 184)
+    label.TextSize = 11
+    
+    local textBox = Instance.new("TextBox")
+    textBox.Name = "InputBox"
+    textBox.Parent = rowFrame
+    textBox.Position = UDim2.new(0, 40, 0, 0)
+    textBox.Size = UDim2.new(1, -40, 1, 0)
+    textBox.BackgroundTransparency = 1
+    textBox.Font = Enum.Font.Gotham
+    textBox.PlaceholderText = "Masukkan Asset ID..."
+    textBox.PlaceholderColor3 = Color3.fromRGB(100, 116, 139)
+    textBox.Text = ""
+    textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textBox.TextSize = 11
+    textBox.TextXAlignment = Enum.TextXAlignment.Left
+    
+    rowFrame.Parent = ScrollContainer
+    table.insert(inputBoxes, rowFrame)
+    resizeGUI()
+end
+
+local function removeInputRow()
+    if #inputBoxes > 1 then
+        local lastRow = table.remove(inputBoxes, #inputBoxes)
+        if lastRow then
+            lastRow:Destroy()
+            resizeGUI()
+        end
+    end
+end
+
+-- Inisialisasi awal 1 Kolom ID pas di layar
+addInputRow()
+
+AddBtn.MouseButton1Click:Connect(addInputRow)
+RemoveBtn.MouseButton1Click:Connect(removeInputRow)
+
+----------------------------------------------------
+-- FIX EXACT BULKPURCHASE REMOTE PAYLOAD
+----------------------------------------------------
+BuyBtn.MouseButton1Click:Connect(function()
+    local bulkItems = {}
+    local catalogItems = {}
+    
+    for _, row in ipairs(inputBoxes) do
+        local box = row:FindFirstChild("InputBox")
+        if box and box.Text ~= "" then
+            local cleanId = box.Text:gsub("%s+", "")
+            
+            -- Format presisi sesuai contoh kamu:
+            table.insert(bulkItems, {
+                Id = cleanId,
+                Type = Enum.MarketplaceProductType.AvatarAsset
+            })
+            
+            table.insert(catalogItems, {
+                id = tonumber(cleanId) or cleanId,
+                itemType = "Asset"
+            })
+        end
+    end
+    
+    if #bulkItems > 0 then
+        -- 1. Jalankan BulkPurchase utama (Tampilan Roblox Summary)
+        pcall(function()
+            local args = { bulkItems }
+            game:GetService("ReplicatedStorage")
+                :WaitForChild("Remotes")
+                :WaitForChild("BulkPurchase")
+                :FireServer(unpack(args))
+        end)
+        
+        -- 2. Jalankan CatalogAvatar Request sebagai cadangan/tambahan
+        pcall(function()
+            local catalogRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CatalogAvatar")
+            if catalogRemote then
+                local req = catalogRemote:FindFirstChild("Remotes") and catalogRemote.Remotes:FindFirstChild("Request")
+                if req then
+                    req:InvokeServer("bulkBuy", { items = catalogItems })
+                end
+            end
+        end)
+    end
+end)
+
+----------------------------------------------------
+-- CLOSE & MINIMIZE CONTROL
+----------------------------------------------------
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        ScrollContainer.Visible = false
+        ControlFrame.Visible = false
+        MainFrame.Size = UDim2.new(0, 270, 0, 30)
+        MinimizeBtn.Text = "+"
+    else
+        ScrollContainer.Visible = true
+        ControlFrame.Visible = true
+        resizeGUI()
+        MinimizeBtn.Text = "-"
+    end
+end)
