@@ -1,0 +1,254 @@
+-- Services
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Hapus GUI & ESP Lama Jika Ada
+if PlayerGui:FindFirstChild("BagasHUB_SpawnESP_GUI") then
+    PlayerGui.BagasHUB_SpawnESP_GUI:Destroy()
+end
+
+local ESPFolder = CoreGui:FindFirstChild("BagasHUB_SpawnESP")
+if ESPFolder then
+    ESPFolder:Destroy()
+end
+
+ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "BagasHUB_SpawnESP"
+ESPFolder.Parent = CoreGui
+
+-- Status Aktif ESP
+local isSpawnESPActive = false
+
+-- ==========================================
+-- 1. GUI UTAMA (TEMA CYAN / BIRU MUDA)
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BagasHUB_SpawnESP_GUI"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 220, 0, 95)
+MainFrame.Position = UDim2.new(0.4, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 30, 45)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 55, 80)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 8)
+
+local TitlePatch = Instance.new("Frame")
+TitlePatch.Size = UDim2.new(1, 0, 0, 10)
+TitlePatch.Position = UDim2.new(0, 0, 1, -10)
+TitlePatch.BackgroundColor3 = Color3.fromRGB(25, 55, 80)
+TitlePatch.BorderSizePixel = 0
+TitlePatch.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -60, 1, 0)
+TitleText.Position = UDim2.new(0, 10, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "BagasHUB / Respawn ESP"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.TextSize = 11
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+-- Close & Minimize Button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Position = UDim2.new(1, -26, 0.5, -11)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(210, 50, 50)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 11
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = TitleBar
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+MinimizeBtn.Position = UDim2.new(1, -52, 0.5, -11)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 110)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 12
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = TitleBar
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 4)
+
+-- Container Konten
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, 0, 1, -32)
+ContentFrame.Position = UDim2.new(0, 0, 0, 32)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 190, 0, 36)
+ToggleBtn.Position = UDim2.new(0.5, -95, 0, 12)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+ToggleBtn.Text = "RESPAWN ESP: OFF [Z]"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 11
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Parent = ContentFrame
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
+
+-- Minimize System
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    MainFrame.Size = isMinimized and UDim2.new(0, 220, 0, 32) or UDim2.new(0, 220, 0, 95)
+    ContentFrame.Visible = not isMinimized
+    MinimizeBtn.Text = isMinimized and "+" or "-"
+end)
+
+-- ==========================================
+-- 2. LOGIKA RESPAWN / SPAWN ESP
+-- ==========================================
+
+local function clearAllSpawnESP()
+    for _, child in ipairs(ESPFolder:GetChildren()) do
+        child:Destroy()
+    end
+    for _, desc in ipairs(Workspace:GetDescendants()) do
+        local h = desc:FindFirstChild("SpawnESP_Highlight")
+        if h then h:Destroy() end
+    end
+end
+
+-- Variabel koneksi Input agar bisa dibersihkan saat GUI ditutup
+local inputConnection
+
+CloseBtn.MouseButton1Click:Connect(function()
+    isSpawnESPActive = false
+    clearAllSpawnESP()
+    if inputConnection then inputConnection:Disconnect() end
+    ScreenGui:Destroy()
+    ESPFolder:Destroy()
+end)
+
+-- Fungsi memasang ESP pada objek yang baru spawn
+local function applySpawnESP(object)
+    if not isSpawnESPActive or not object or not object:IsA("PVInstance") then return end
+
+    -- Abaikan karakter sendiri
+    if LocalPlayer.Character and object:IsDescendantOf(LocalPlayer.Character) then return end
+
+    -- Tentukan Part target visual
+    local targetPart = object:IsA("Model") and (object.PrimaryPart or object:FindFirstChildWhichIsA("BasePart", true)) or object
+    if not targetPart or not targetPart:IsA("BasePart") then return end
+
+    -- Abaikan komponen dasar map
+    local nameLower = string.lower(targetPart.Name)
+    if nameLower == "baseplate" or nameLower == "terrain" or nameLower == "workspace" then return end
+    if targetPart:FindFirstChild("SpawnESP_Highlight") then return end
+
+    local displayName = (object:IsA("Model") and object.Name ~= "Workspace") and object.Name or targetPart.Name
+
+    -- 1. Buat Highlight (Glow Cyan / Biru Neon)
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SpawnESP_Highlight"
+    highlight.Adornee = object
+    highlight.FillColor = Color3.fromRGB(0, 230, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = targetPart
+
+    -- 2. Buat Label Teks
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "SpawnESP_Text"
+    billboard.Adornee = targetPart
+    billboard.Size = UDim2.new(0, 160, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = ESPFolder
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = string.format("⚡ [ %s ]", displayName)
+    textLabel.TextColor3 = Color3.fromRGB(120, 240, 255)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.TextSize = 12
+    textLabel.Parent = billboard
+
+    -- Loop pembaruan jarak real-time & indikator aktif
+    task.spawn(function()
+        while isSpawnESPActive and object and object.Parent and targetPart and targetPart.Parent and billboard and billboard.Parent do
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if root then
+                local distance = math.floor((root.Position - targetPart.Position).Magnitude)
+                textLabel.Text = string.format("⚡ [ %s ]\n[%dm]", displayName, distance)
+            end
+            task.wait(0.2)
+        end
+        if billboard then billboard:Destroy() end
+        if highlight then highlight:Destroy() end
+    end)
+end
+
+-- Fungsi utama pengubah status Toggle ON/OFF
+local function toggleESP()
+    isSpawnESPActive = not isSpawnESPActive
+    ToggleBtn.BackgroundColor3 = isSpawnESPActive and Color3.fromRGB(0, 160, 210) or Color3.fromRGB(180, 50, 50)
+    ToggleBtn.Text = "RESPAWN ESP: " .. (isSpawnESPActive and "ON [Z]" or "OFF [Z]")
+
+    if not isSpawnESPActive then
+        clearAllSpawnESP()
+    end
+end
+
+-- Trigger Klik Tombol GUI
+ToggleBtn.MouseButton1Click:Connect(toggleESP)
+
+-- Trigger Menekan Tombol Keyboard Z
+inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Pastikan tidak sedang mengetik di kolom chat/text box
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.Z then
+        toggleESP()
+    end
+end)
+
+-- Deteksi saat ada Objek / NPC / Item / Player baru yang RESPAWN di Workspace
+Workspace.ChildAdded:Connect(function(child)
+    if isSpawnESPActive then
+        task.wait(0.1) -- Jeda sebentar agar part ter-load sempurna
+        pcall(function()
+            applySpawnESP(child)
+        end)
+    end
+end)
+
+-- Deteksi jika ada bagian tubuh / prop yang spawn di dalam sub-folder Workspace
+Workspace.DescendantAdded:Connect(function(descendant)
+    if isSpawnESPActive and descendant:IsA("Model") then
+        task.wait(0.1)
+        pcall(function()
+            applySpawnESP(descendant)
+        end)
+    end
+end)
