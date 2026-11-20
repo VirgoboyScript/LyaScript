@@ -1,0 +1,329 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
+
+local SlotDataList = {} -- Tempat menyimpan data slot
+
+local WalkLoopAktif = false
+local Minimized = false
+
+-- Hapus GUI lama jika ada
+if CoreGui:FindFirstChild("BagasHubGUI") then
+    CoreGui.BagasHubGUI:Destroy()
+end
+
+-- ==================== MAIN CANVAS GUI ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BagasHubGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGui
+
+local FrameUtama = Instance.new("Frame")
+FrameUtama.Size = UDim2.fromOffset(250, 320)
+FrameUtama.Position = UDim2.new(0.2, 0, 0.25, 0)
+FrameUtama.BackgroundColor3 = Color3.fromRGB(25, 25, 27)
+FrameUtama.BorderSizePixel = 0
+FrameUtama.Active = true
+FrameUtama.Parent = ScreenGui
+
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 10)
+UICornerMain.Parent = FrameUtama
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Thickness = 1.8
+FrameStroke.Color = Color3.fromRGB(70, 70, 75)
+FrameStroke.Parent = FrameUtama
+
+-- ==================== ATAS: JUDUL UTAMA ====================
+local Judul = Instance.new("TextLabel")
+Judul.Size = UDim2.new(0, 110, 0, 35)
+Judul.Position = UDim2.new(0, 12, 0, 0)
+Judul.BackgroundTransparency = 1
+Judul.Text = "Auto Walk/BagasHub"
+Judul.Font = Enum.Font.SourceSansBold
+Judul.TextSize = 14
+Judul.TextColor3 = Color3.fromRGB(240, 240, 245)
+Judul.TextXAlignment = Enum.TextXAlignment.Left
+Judul.Parent = FrameUtama
+
+-- ==================== ATAS KANAN: TOMBOL KONTROL ====================
+local TombolTambah = Instance.new("TextButton")
+TombolTambah.Size = UDim2.fromOffset(24, 24)
+TombolTambah.Position = UDim2.new(1, -112, 0, 6)
+TombolTambah.BackgroundColor3 = Color3.fromRGB(35, 130, 35)
+TombolTambah.Text = "+"
+TombolTambah.Font = Enum.Font.SourceSansBold
+TombolTambah.TextColor3 = Color3.new(1, 1, 1)
+TombolTambah.TextSize = 16
+Instance.new("UICorner", TombolTambah).CornerRadius = UDim.new(0, 6)
+TombolTambah.Parent = FrameUtama
+
+local TombolHapus = Instance.new("TextButton")
+TombolHapus.Size = UDim2.fromOffset(24, 24)
+TombolHapus.Position = UDim2.new(1, -84, 0, 6)
+TombolHapus.BackgroundColor3 = Color3.fromRGB(150, 35, 35)
+TombolHapus.Text = "-"
+TombolHapus.Font = Enum.Font.SourceSansBold
+TombolHapus.TextColor3 = Color3.new(1, 1, 1)
+TombolHapus.TextSize = 18
+Instance.new("UICorner", TombolHapus).CornerRadius = UDim.new(0, 6)
+TombolHapus.Parent = FrameUtama
+
+local TombolMinimize = Instance.new("TextButton")
+TombolMinimize.Size = UDim2.fromOffset(24, 24)
+TombolMinimize.Position = UDim2.new(1, -56, 0, 6)
+TombolMinimize.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+TombolMinimize.Text = "—"
+TombolMinimize.Font = Enum.Font.SourceSansBold
+TombolMinimize.TextColor3 = Color3.new(1, 1, 1)
+TombolMinimize.TextSize = 12
+Instance.new("UICorner", TombolMinimize).CornerRadius = UDim.new(0, 6)
+TombolMinimize.Parent = FrameUtama
+
+local TombolClose = Instance.new("TextButton")
+TombolClose.Size = UDim2.fromOffset(24, 24)
+TombolClose.Position = UDim2.new(1, -28, 0, 6)
+TombolClose.BackgroundColor3 = Color3.fromRGB(190, 30, 30)
+TombolClose.Text = "X"
+TombolClose.Font = Enum.Font.SourceSansBold
+TombolClose.TextColor3 = Color3.new(1, 1, 1)
+TombolClose.TextSize = 14
+Instance.new("UICorner", TombolClose).CornerRadius = UDim.new(0, 6)
+TombolClose.Parent = FrameUtama
+
+-- ==================== KONTROL UTAMA: TOGGLE WALK ====================
+local TombolToggleWalk = Instance.new("TextButton")
+TombolToggleWalk.Size = UDim2.new(1, -20, 0, 28)
+TombolToggleWalk.Position = UDim2.new(0, 10, 0, 38)
+TombolToggleWalk.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+TombolToggleWalk.Text = "WALK: OFF"
+TombolToggleWalk.Font = Enum.Font.SourceSansBold
+TombolToggleWalk.TextColor3 = Color3.new(1, 1, 1)
+TombolToggleWalk.TextSize = 12
+TombolToggleWalk.Parent = FrameUtama
+Instance.new("UICorner", TombolToggleWalk).CornerRadius = UDim.new(0, 5)
+
+-- ==================== SCROLLING CONTAINER ====================
+local SlotScrollContainer = Instance.new("ScrollingFrame")
+SlotScrollContainer.Size = UDim2.new(1, -20, 1, -80)
+SlotScrollContainer.Position = UDim2.new(0, 10, 0, 72)
+SlotScrollContainer.BackgroundTransparency = 1
+SlotScrollContainer.BorderSizePixel = 0
+SlotScrollContainer.ScrollBarThickness = 5
+SlotScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+SlotScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+SlotScrollContainer.Parent = FrameUtama
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = SlotScrollContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 4)
+
+-- ==================== DRAG SYSTEM ====================
+local dragging, dragInput, dragStart, startPos
+FrameUtama.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = FrameUtama.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+end)
+FrameUtama.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        FrameUtama.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==================== UTILS ====================
+local function DapatkanCharacter()
+    return LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
+end
+
+local function JalanKeTarget(targetPosition)
+    local Karakter = DapatkanCharacter()
+    if not Karakter then return end
+    
+    local Humanoid = Karakter:FindFirstChildOfClass("Humanoid")
+    local RootPart = Karakter:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not RootPart then return end
+
+    Humanoid:MoveTo(targetPosition)
+
+    -- Tunggu sampai karakter sampai ke lokasi atau butuh waktu terlalu lama (Timeout 15s)
+    local reached = false
+    local connection
+    connection = Humanoid.MoveToFinished:Connect(function()
+        reached = true
+    end)
+
+    local startTime = tick()
+    while not reached and WalkLoopAktif do
+        -- Cek jika jarak sudah sangat dekat (< 3 studs)
+        if (RootPart.Position - targetPosition).Magnitude <= 3 then
+            break
+        end
+        -- Batas waktu timeout jika karakter tersangkut
+        if tick() - startTime > 15 then
+            break
+        end
+        task.wait(0.1)
+    end
+
+    if connection then connection:Disconnect() end
+end
+
+-- ==================== FUNGSI URUTAN SLOT ====================
+local function PerbaruiTeksDanUrutanSlot()
+    for index, data in ipairs(SlotDataList) do
+        data.Container.LayoutOrder = index
+        if data.Position then
+            data.TombolSlot.Text = "Slot " .. index .. " (Ready)"
+            data.TombolSlot.BackgroundColor3 = Color3.fromRGB(35, 130, 35)
+            data.TombolSlot.TextColor3 = Color3.new(1, 1, 1)
+        else
+            data.TombolSlot.Text = "Slot " .. index .. " (Kosong)"
+            data.TombolSlot.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            data.TombolSlot.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+    end
+end
+
+local function BuatSlotBaru()
+    local ItemFrame = Instance.new("Frame")
+    ItemFrame.Size = UDim2.new(1, -6, 0, 26)
+    ItemFrame.BackgroundTransparency = 1
+    ItemFrame.Parent = SlotScrollContainer
+
+    local TombolSlot = Instance.new("TextButton")
+    TombolSlot.Size = UDim2.new(1, -45, 1, 0)
+    TombolSlot.Position = UDim2.new(0, 0, 0, 0)
+    TombolSlot.Font = Enum.Font.SourceSans
+    TombolSlot.TextSize = 11
+    TombolSlot.Parent = ItemFrame
+    Instance.new("UICorner", TombolSlot).CornerRadius = UDim.new(0, 4)
+
+    local TombolSet = Instance.new("TextButton")
+    TombolSet.Size = UDim2.new(0, 40, 1, 0)
+    TombolSet.Position = UDim2.new(1, -40, 0, 0)
+    TombolSet.BackgroundColor3 = Color3.fromRGB(0, 110, 180)
+    TombolSet.Text = "Set"
+    TombolSet.Font = Enum.Font.SourceSansBold
+    TombolSet.TextColor3 = Color3.new(1, 1, 1)
+    TombolSet.TextSize = 11
+    TombolSet.Parent = ItemFrame
+    Instance.new("UICorner", TombolSet).CornerRadius = UDim.new(0, 4)
+
+    local DataSlot = {
+        Position = nil,
+        Container = ItemFrame,
+        TombolSlot = TombolSlot,
+        TombolSet = TombolSet
+    }
+
+    -- Listener Tombol SET (Simpan Posisi Karakter)
+    TombolSet.MouseButton1Click:Connect(function()
+        local Karakter = DapatkanCharacter()
+        local RootPart = Karakter and Karakter:FindFirstChild("HumanoidRootPart")
+        if RootPart then
+            DataSlot.Position = RootPart.Position
+            PerbaruiTeksDanUrutanSlot()
+        end
+    end)
+
+    -- Listener Manual Walk ke Slot Tertentu
+    TombolSlot.MouseButton1Click:Connect(function()
+        if DataSlot.Position then
+            task.spawn(function()
+                JalanKeTarget(DataSlot.Position)
+            end)
+        end
+    end)
+
+    table.insert(SlotDataList, DataSlot)
+    PerbaruiTeksDanUrutanSlot()
+end
+
+local function HapusSlotTerakhir()
+    local jumlahSlot = #SlotDataList
+    if jumlahSlot <= 0 then return end
+
+    local DataTerakhir = SlotDataList[jumlahSlot]
+    if DataTerakhir then
+        DataTerakhir.Container:Destroy()
+        table.remove(SlotDataList, jumlahSlot)
+        PerbaruiTeksDanUrutanSlot()
+    end
+end
+
+-- ==================== LOOPING AUTO WALK ====================
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if WalkLoopAktif and #SlotDataList > 0 then
+            for i = 1, #SlotDataList do
+                if not WalkLoopAktif then break end
+                
+                local slotData = SlotDataList[i]
+                if slotData and slotData.Position then
+                    JalanKeTarget(slotData.Position)
+                    task.wait(0.2) -- Jeda singkat sebelum lanjut ke titik berikutnya
+                end
+            end
+        end
+    end
+end)
+
+-- ==================== KONTROL BUTTON ====================
+TombolTambah.MouseButton1Click:Connect(function()
+    if not Minimized then BuatSlotBaru() end
+end)
+
+TombolHapus.MouseButton1Click:Connect(function()
+    if not Minimized then HapusSlotTerakhir() end
+end)
+
+TombolToggleWalk.MouseButton1Click:Connect(function()
+    WalkLoopAktif = not WalkLoopAktif
+    if WalkLoopAktif then
+        TombolToggleWalk.BackgroundColor3 = Color3.fromRGB(35, 145, 35)
+        TombolToggleWalk.Text = "WALK: ON"
+    else
+        TombolToggleWalk.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+        TombolToggleWalk.Text = "WALK: OFF"
+        
+        -- Hentikan gerak karakter saat OFF
+        local Karakter = DapatkanCharacter()
+        local Humanoid = Karakter and Karakter:FindFirstChildOfClass("Humanoid")
+        if Humanoid then
+            Humanoid:MoveTo(Karakter.HumanoidRootPart.Position)
+        end
+    end
+end)
+
+TombolMinimize.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    if Minimized then
+        SlotScrollContainer.Visible = false
+        TombolToggleWalk.Visible = false
+        FrameUtama:TweenSize(UDim2.fromOffset(250, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        TombolMinimize.Text = "📁"
+    else
+        FrameUtama:TweenSize(UDim2.fromOffset(250, 320), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        task.wait(0.12)
+        SlotScrollContainer.Visible = true
+        TombolToggleWalk.Visible = true
+        TombolMinimize.Text = "—"
+    end
+end)
+
+TombolClose.MouseButton1Click:Connect(function()
+    WalkLoopAktif = false
+    ScreenGui:Destroy()
+end)
+
+-- Buat slot pertama secara otomatis
+BuatSlotBaru()
