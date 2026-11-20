@@ -1,0 +1,581 @@
+-- Roblox Custom GUI - BagasHub
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local MainCorner = Instance.new("UICorner")
+local MainStroke = Instance.new("UIStroke")
+
+local TitleBar = Instance.new("Frame")
+local TitleBarCorner = Instance.new("UICorner")
+local TitleLabel = Instance.new("TextLabel")
+local CloseBtn = Instance.new("TextButton")
+local CloseCorner = Instance.new("UICorner")
+local MinimizeBtn = Instance.new("TextButton")
+local MinimizeCorner = Instance.new("UICorner")
+
+local Container = Instance.new("Frame")
+local UIListLayout = Instance.new("UIListLayout")
+local UIPadding = Instance.new("UIPadding")
+
+-- Services
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local player = Players.LocalPlayer
+
+-- Auto-parenting
+local ParentContainer = (gethui and gethui()) or game:GetService("CoreGui") or player:WaitForChild("PlayerGui")
+ScreenGui.Parent = ParentContainer
+ScreenGui.Name = "BagasHubRefined"
+
+-- Main Frame (Ukuran disesuaikan jadi 475 agar muat seluruh tombol)
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 23, 42)
+MainFrame.Position = UDim2.new(0.35, 0, 0.18, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 475)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.ClipsDescendants = true
+
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+MainStroke.Color = Color3.fromRGB(37, 99, 235)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = MainFrame
+
+-- Title Bar
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 58, 138)
+TitleBar.Size = UDim2.new(1, 0, 0, 32)
+
+TitleBarCorner.CornerRadius = UDim.new(0, 10)
+TitleBarCorner.Parent = TitleBar
+
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = TitleBar
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.Size = UDim2.new(1, -65, 1, 0)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "Utility / BagasHub"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 12
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close Button
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Parent = TitleBar
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 38, 38)
+CloseBtn.Position = UDim2.new(1, -26, 0, 4)
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 11
+
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Minimize Button
+MinimizeBtn.Name = "MinimizeBtn"
+MinimizeBtn.Parent = TitleBar
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(37, 99, 235)
+MinimizeBtn.Position = UDim2.new(1, -52, 0, 4)
+MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 13
+
+MinimizeCorner.CornerRadius = UDim.new(0, 6)
+MinimizeCorner.Parent = MinimizeBtn
+
+-- Container
+Container.Name = "Container"
+Container.Parent = MainFrame
+Container.BackgroundTransparency = 1
+Container.Position = UDim2.new(0, 0, 0, 32)
+Container.Size = UDim2.new(1, 0, 1, -32)
+
+UIListLayout.Parent = Container
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+
+UIPadding.Parent = Container
+UIPadding.PaddingTop = UDim.new(0, 10)
+UIPadding.PaddingLeft = UDim.new(0, 10)
+UIPadding.PaddingRight = UDim.new(0, 10)
+
+-- Helper Function
+local function createButton(text, bgCol)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 32)
+    btn.BackgroundColor3 = bgCol or Color3.fromRGB(239, 68, 68)
+    btn.Font = Enum.Font.GothamBold
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.TextSize = 11
+    btn.AutoButtonColor = true
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+----------------------------------------------------
+-- 0. AUTOMATIC PASSIVE SERVICES (ANTI AFK, AUTO-REJOIN & ANTI FLING)
+----------------------------------------------------
+local isAntiAfkActive = true
+local isAutoRejoinActive = true
+
+player.Idled:Connect(function()
+    if isAntiAfkActive then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0, 0))
+        print("[Anti-AFK] Berhasil mencegah kick AFK.")
+    end
+end)
+
+task.spawn(function()
+    while task.wait(300) do
+        if isAntiAfkActive then
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton1(Vector2.new(0, 0))
+            end)
+        end
+    end
+end)
+
+GuiService.ErrorMessageChanged:Connect(function(errorMessage)
+    if isAutoRejoinActive and errorMessage and errorMessage ~= "" then
+        print("[Auto-Rejoin] Terdeteksi Disconnect! Rejoining...")
+        task.wait(5)
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, player)
+        end)
+    end
+end)
+
+local function rejoinGame()
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, player)
+    end)
+end
+
+-- Auto AntiFling
+task.spawn(function()
+    game:GetService("RunService").Stepped:Connect(function()
+        local myChar = player.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                local char = plr.Character
+                local root = char:FindFirstChild("HumanoidRootPart")
+                
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if part.AssemblyLinearVelocity.Magnitude > 100 or part.AssemblyAngularVelocity.Magnitude > 100 then
+                            part.AssemblyLinearVelocity = Vector3.zero
+                            part.AssemblyAngularVelocity = Vector3.zero
+                        end
+                    end
+                end
+                
+                if myRoot and root and (root.Position - myRoot.Position).Magnitude < 15 then
+                    if root.AssemblyLinearVelocity.Magnitude > 50 or root.AssemblyAngularVelocity.Magnitude > 50 then
+                        for _, part in ipairs(myChar:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.AssemblyLinearVelocity = Vector3.zero
+                                part.AssemblyAngularVelocity = Vector3.zero
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+----------------------------------------------------
+-- 1. PENGATURAN KECEPATAN (ANTI-RESET SPEED)
+----------------------------------------------------
+local SpeedFrame = Instance.new("Frame")
+SpeedFrame.Parent = Container
+SpeedFrame.Size = UDim2.new(1, 0, 0, 32)
+SpeedFrame.BackgroundTransparency = 1
+
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Parent = SpeedFrame
+SpeedInput.Size = UDim2.new(0.52, -4, 1, 0)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedInput.PlaceholderText = "Speed (16)"
+SpeedInput.PlaceholderColor3 = Color3.fromRGB(148, 163, 184)
+SpeedInput.Text = ""
+SpeedInput.Font = Enum.Font.Gotham
+SpeedInput.TextSize = 11
+
+local SpeedCorner = Instance.new("UICorner")
+SpeedCorner.CornerRadius = UDim.new(0, 6)
+SpeedCorner.Parent = SpeedInput
+
+local NormalSpeedBtn = createButton("Reset (16)", Color3.fromRGB(37, 99, 235))
+NormalSpeedBtn.Parent = SpeedFrame
+NormalSpeedBtn.Position = UDim2.new(0.52, 4, 0, 0)
+NormalSpeedBtn.Size = UDim2.new(0.48, -4, 1, 0)
+
+local targetSpeed = 16
+local isCustomSpeedActive = false
+
+SpeedInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local num = tonumber(SpeedInput.Text)
+        if num then
+            targetSpeed = num
+            isCustomSpeedActive = true
+        end
+    end
+end)
+
+NormalSpeedBtn.MouseButton1Click:Connect(function()
+    isCustomSpeedActive = false
+    targetSpeed = 16
+    SpeedInput.Text = "16"
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = 16
+    end
+end)
+
+local speedConnection = game:GetService("RunService").RenderStepped:Connect(function()
+    if isCustomSpeedActive then
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed ~= targetSpeed then
+                hum.WalkSpeed = targetSpeed
+            end
+        end
+    end
+end)
+
+----------------------------------------------------
+-- 2. INFINITE JUMP
+----------------------------------------------------
+local InfJumpBtn = createButton("Infinite Jump: OFF")
+InfJumpBtn.Parent = Container
+
+local infJumpEnabled = false
+InfJumpBtn.MouseButton1Click:Connect(function()
+    infJumpEnabled = not infJumpEnabled
+    if infJumpEnabled then
+        InfJumpBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        InfJumpBtn.Text = "Infinite Jump: ON"
+    else
+        InfJumpBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        InfJumpBtn.Text = "Infinite Jump: OFF"
+    end
+end)
+
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local char = player.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end
+end)
+
+----------------------------------------------------
+-- 3. NOCLIP & UNCLIP
+----------------------------------------------------
+local NoClipBtn = createButton("NoClip: OFF")
+NoClipBtn.Parent = Container
+
+local NoclipLoop
+local noclipEnabled = false
+local originalCanCollide = {}
+
+local function clip()
+    noclipEnabled = false
+    if NoclipLoop then
+        NoclipLoop:Disconnect()
+        NoclipLoop = nil
+    end
+    
+    for part, status in pairs(originalCanCollide) do
+        if part and part.Parent then
+            part.CanCollide = status
+        end
+    end
+    originalCanCollide = {}
+end
+
+local function noclip()
+    clip()
+    noclipEnabled = true
+    
+    local Char = player.Character
+    if Char then
+        for _, part in pairs(Char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                originalCanCollide[part] = part.CanCollide
+            end
+        end
+    end
+    
+    NoclipLoop = game:GetService("RunService").Stepped:Connect(function()
+        if not noclipEnabled then return end
+        local character = player.Character
+        if character then
+            for _, v in pairs(character:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    if originalCanCollide[v] == nil then
+                        originalCanCollide[v] = v.CanCollide
+                    end
+                    v.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+NoClipBtn.MouseButton1Click:Connect(function()
+    if noclipEnabled then
+        clip()
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        NoClipBtn.Text = "NoClip: OFF"
+    else
+        noclip()
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        NoClipBtn.Text = "NoClip: ON"
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    clip()
+end)
+
+----------------------------------------------------
+-- 4. FITUR FLY
+----------------------------------------------------
+local FlyFrame = Instance.new("Frame")
+FlyFrame.Parent = Container
+FlyFrame.Size = UDim2.new(1, 0, 0, 32)
+FlyFrame.BackgroundTransparency = 1
+
+local FlyToggleBtn = createButton("Fly: OFF")
+FlyToggleBtn.Parent = FlyFrame
+FlyToggleBtn.Size = UDim2.new(0.45, -2, 1, 0)
+
+local MinusBtn = createButton("-", Color3.fromRGB(37, 99, 235))
+MinusBtn.Parent = FlyFrame
+MinusBtn.Position = UDim2.new(0.45, 2, 0, 0)
+MinusBtn.Size = UDim2.new(0, 24, 1, 0)
+
+local FlySpeedLabel = Instance.new("TextLabel")
+FlySpeedLabel.Parent = FlyFrame
+FlySpeedLabel.Position = UDim2.new(0.45, 28, 0, 0)
+FlySpeedLabel.Size = UDim2.new(0.55, -54, 1, 0)
+FlySpeedLabel.BackgroundColor3 = Color3.fromRGB(30, 41, 59)
+FlySpeedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+FlySpeedLabel.Text = "1"
+FlySpeedLabel.Font = Enum.Font.Gotham
+FlySpeedLabel.TextSize = 11
+
+local LabelCorner = Instance.new("UICorner")
+LabelCorner.CornerRadius = UDim.new(0, 6)
+LabelCorner.Parent = FlySpeedLabel
+
+local PlusBtn = createButton("+", Color3.fromRGB(37, 99, 235))
+PlusBtn.Parent = FlyFrame
+PlusBtn.Position = UDim2.new(1, -24, 0, 0)
+PlusBtn.Size = UDim2.new(0, 24, 1, 0)
+
+local nowe = false
+local speeds = 1
+local tpwalking = false
+
+local function startTpWalk()
+    tpwalking = true
+    for i = 1, speeds do
+        task.spawn(function()
+            local hb = game:GetService("RunService").Heartbeat
+            while tpwalking and hb:Wait() do
+                local chr = player.Character
+                local hum = chr and chr:FindFirstChildWhichIsA("Humanoid")
+                if chr and hum and hum.Parent then
+                    if hum.MoveDirection.Magnitude > 0 then
+                        chr:TranslateBy(hum.MoveDirection)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+local function toggleFly()
+    if nowe then
+        nowe = false
+        tpwalking = false
+        
+        local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Flying, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Running, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, true)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+            hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+            hum.PlatformStand = false
+        end
+        if player.Character and player.Character:FindFirstChild("Animate") then
+            player.Character.Animate.Disabled = false
+        end
+    else
+        nowe = true
+        startTpWalk()
+
+        if player.Character and player.Character:FindFirstChild("Animate") then
+            player.Character.Animate.Disabled = true
+        end
+        
+        local Hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if Hum then
+            for _, v in next, Hum:GetPlayingAnimationTracks() do
+                v:AdjustSpeed(0)
+            end
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Flying, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Running, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+            Hum:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+            Hum:ChangeState(Enum.HumanoidStateType.Swimming)
+        end
+
+        task.spawn(function()
+            local char = player.Character
+            if not char then return end
+            
+            local targetPart = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+            if not targetPart then return end
+
+            local bg = Instance.new("BodyGyro", targetPart)
+            bg.P = 9e4
+            bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+            bg.cframe = targetPart.CFrame
+            
+            local bv = Instance.new("BodyVelocity", targetPart)
+            bv.velocity = Vector3.new(0, 0.1, 0)
+            bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
+            if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character.Humanoid.PlatformStand = true
+            end
+
+            while nowe and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 do
+                game:GetService("RunService").RenderStepped:Wait()
+                bg.cframe = workspace.CurrentCamera.CFrame
+            end
+
+            bg:Destroy()
+            bv:Destroy()
+            if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character.Humanoid.PlatformStand = false
+            end
+            if player.Character and player.Character:FindFirstChild("Animate") then
+                player.Character.Animate.Disabled = false
+            end
+            tpwalking = false
+        end)
+    end
+end
+
+FlyToggleBtn.MouseButton1Click:Connect(function()
+    toggleFly()
+    if nowe then
+        FlyToggleBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        FlyToggleBtn.Text = "Fly: ON"
+    else
+        FlyToggleBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        FlyToggleBtn.Text = "Fly: OFF"
+    end
+end)
+
+PlusBtn.MouseButton1Click:Connect(function()
+    speeds = speeds + 1
+    FlySpeedLabel.Text = tostring(speeds)
+    if nowe then
+        tpwalking = false
+        task.wait(0.1)
+        startTpWalk()
+    end
+end)
+
+MinusBtn.MouseButton1Click:Connect(function()
+    if speeds > 1 then
+        speeds = speeds - 1
+        FlySpeedLabel.Text = tostring(speeds)
+        if nowe then
+            tpwalking = false
+            task.wait(0.1)
+            startTpWalk()
+        end
+    end
+end)
+
+----------------------------------------------------
+-- 5. FULLBRIGHT
+----------------------------------------------------
+local BrightBtn = createButton("Terang: OFF")
+BrightBtn.Parent = Container
+
+local fullbrightEnabled = false
+local Lighting = game:GetService("Lighting")
+
+local originalLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows,
+    Ambient = Lighting.Ambient
+}
+
+local brightConnection
+
+BrightBtn.MouseButton1Click:Connect(function()
+    fullbrightEnabled = not fullbrightEnabled
+    if fullbrightEnabled then
+        BrightBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        BrightBtn.Text = "Terang: ON"
+        
+        originalLighting.Brightness = Lighting.Brightness
+        originalLighting.ClockTime = Lighting.ClockTime
+        originalLighting.FogEnd = Lighting.FogEnd
+        originalLightin
