@@ -1,0 +1,429 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+
+local RecordedFrameData = {}
+local IsRecording = false
+local IsPlaying = false
+local Minimized = false
+
+local RecordConnection = nil
+local CurrentFileName = "rekaman_1"
+
+if CoreGui:FindFirstChild("BagasMultiRecorderGUI") then
+    CoreGui.BagasMultiRecorderGUI:Destroy()
+end
+
+-- ==================== MAIN CANVAS GUI ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BagasMultiRecorderGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGui
+
+local FrameUtama = Instance.new("Frame")
+FrameUtama.Size = UDim2.fromOffset(240, 310) -- Ditambahkan tingginya untuk tombol delete
+FrameUtama.Position = UDim2.new(0.2, 0, 0.25, 0)
+FrameUtama.BackgroundColor3 = Color3.fromRGB(25, 25, 27)
+FrameUtama.BorderSizePixel = 0
+FrameUtama.Active = true
+FrameUtama.Parent = ScreenGui
+
+Instance.new("UICorner", FrameUtama).CornerRadius = UDim.new(0, 10)
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Thickness = 1.8
+FrameStroke.Color = Color3.fromRGB(70, 70, 75)
+FrameStroke.Parent = FrameUtama
+
+-- ==================== HEADER ====================
+local Judul = Instance.new("TextLabel")
+Judul.Size = UDim2.new(0, 140, 0, 35)
+Judul.Position = UDim2.new(0, 12, 0, 0)
+Judul.BackgroundTransparency = 1
+Judul.Text = "Multi Motion Recorder"
+Judul.Font = Enum.Font.SourceSansBold
+Judul.TextSize = 14
+Judul.TextColor3 = Color3.fromRGB(240, 240, 245)
+Judul.TextXAlignment = Enum.TextXAlignment.Left
+Judul.Parent = FrameUtama
+
+local TombolMinimize = Instance.new("TextButton")
+TombolMinimize.Size = UDim2.fromOffset(24, 24)
+TombolMinimize.Position = UDim2.new(1, -56, 0, 6)
+TombolMinimize.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+TombolMinimize.Text = "—"
+TombolMinimize.Font = Enum.Font.SourceSansBold
+TombolMinimize.TextColor3 = Color3.new(1, 1, 1)
+TombolMinimize.TextSize = 12
+Instance.new("UICorner", TombolMinimize).CornerRadius = UDim.new(0, 6)
+TombolMinimize.Parent = FrameUtama
+
+local TombolClose = Instance.new("TextButton")
+TombolClose.Size = UDim2.fromOffset(24, 24)
+TombolClose.Position = UDim2.new(1, -28, 0, 6)
+TombolClose.BackgroundColor3 = Color3.fromRGB(190, 30, 30)
+TombolClose.Text = "X"
+TombolClose.Font = Enum.Font.SourceSansBold
+TombolClose.TextColor3 = Color3.new(1, 1, 1)
+TombolClose.TextSize = 14
+Instance.new("UICorner", TombolClose).CornerRadius = UDim.new(0, 6)
+TombolClose.Parent = FrameUtama
+
+-- ==================== INPUT NAMA FILE ====================
+local InputNama = Instance.new("TextBox")
+InputNama.Size = UDim2.new(1, -20, 0, 26)
+InputNama.Position = UDim2.new(0, 10, 0, 40)
+InputNama.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+InputNama.Text = CurrentFileName
+InputNama.PlaceholderText = "Masukkan nama file..."
+InputNama.Font = Enum.Font.SourceSans
+InputNama.TextColor3 = Color3.new(1, 1, 1)
+InputNama.TextSize = 12
+InputNama.Parent = FrameUtama
+Instance.new("UICorner", InputNama).CornerRadius = UDim.new(0, 6)
+
+-- ==================== TOMBOL ACTION ====================
+local TombolRecord = Instance.new("TextButton")
+TombolRecord.Size = UDim2.new(1, -20, 0, 30)
+TombolRecord.Position = UDim2.new(0, 10, 0, 74)
+TombolRecord.BackgroundColor3 = Color3.fromRGB(110, 60, 180)
+TombolRecord.Text = "🔴 REKAM BARU"
+TombolRecord.Font = Enum.Font.SourceSansBold
+TombolRecord.TextColor3 = Color3.new(1, 1, 1)
+TombolRecord.TextSize = 11
+TombolRecord.Parent = FrameUtama
+Instance.new("UICorner", TombolRecord).CornerRadius = UDim.new(0, 6)
+
+local TombolPlay = Instance.new("TextButton")
+TombolPlay.Size = UDim2.new(1, -20, 0, 30)
+TombolPlay.Position = UDim2.new(0, 10, 0, 110)
+TombolPlay.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+TombolPlay.Text = "▶ PLAY: OFF"
+TombolPlay.Font = Enum.Font.SourceSansBold
+TombolPlay.TextColor3 = Color3.new(1, 1, 1)
+TombolPlay.TextSize = 11
+TombolPlay.Parent = FrameUtama
+Instance.new("UICorner", TombolPlay).CornerRadius = UDim.new(0, 6)
+
+-- ==================== SCROLLING FRAME UNTUK LIST FILE ====================
+local LabelListTitle = Instance.new("TextLabel")
+LabelListTitle.Size = UDim2.new(1, -20, 0, 18)
+LabelListTitle.Position = UDim2.new(0, 10, 0, 146)
+LabelListTitle.BackgroundTransparency = 1
+LabelListTitle.Text = "Daftar File Tersimpan (Klik untuk Pilih):"
+LabelListTitle.Font = Enum.Font.SourceSansBold
+LabelListTitle.TextSize = 10
+LabelListTitle.TextColor3 = Color3.fromRGB(160, 160, 165)
+LabelListTitle.TextXAlignment = Enum.TextXAlignment.Left
+LabelListTitle.Parent = FrameUtama
+
+local ScrollFileList = Instance.new("ScrollingFrame")
+ScrollFileList.Size = UDim2.new(1, -20, 0, 65)
+ScrollFileList.Position = UDim2.new(0, 10, 0, 166)
+ScrollFileList.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+ScrollFileList.BorderSizePixel = 0
+ScrollFileList.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollFileList.ScrollBarThickness = 4
+ScrollFileList.Parent = FrameUtama
+Instance.new("UICorner", ScrollFileList).CornerRadius = UDim.new(0, 6)
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Padding = UDim.new(0, 4)
+UIListLayout.Parent = ScrollFileList
+
+-- ==================== TOMBOL DELETE FILE ====================
+local TombolDelete = Instance.new("TextButton")
+TombolDelete.Size = UDim2.new(1, -20, 0, 26)
+TombolDelete.Position = UDim2.new(0, 10, 0, 238)
+TombolDelete.BackgroundColor3 = Color3.fromRGB(140, 40, 40)
+TombolDelete.Text = "🗑️ HAPUS FILE TERPILIH"
+TombolDelete.Font = Enum.Font.SourceSansBold
+TombolDelete.TextColor3 = Color3.new(1, 1, 1)
+TombolDelete.TextSize = 10
+TombolDelete.Parent = FrameUtama
+Instance.new("UICorner", TombolDelete).CornerRadius = UDim.new(0, 6)
+
+local LabelStatus = Instance.new("TextLabel")
+LabelStatus.Size = UDim2.new(1, -20, 0, 20)
+LabelStatus.Position = UDim2.new(0, 10, 0, 272)
+LabelStatus.BackgroundTransparency = 1
+LabelStatus.Text = "Status: Siap"
+LabelStatus.Font = Enum.Font.SourceSans
+LabelStatus.TextSize = 11
+LabelStatus.TextColor3 = Color3.fromRGB(180, 180, 180)
+LabelStatus.Parent = FrameUtama
+
+-- ==================== DRAG SYSTEM ====================
+local dragging, dragInput, dragStart, startPos
+FrameUtama.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = FrameUtama.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+end)
+FrameUtama.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        FrameUtama.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==================== SERIALIZER ====================
+local function DapatkanCharacter()
+    return LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
+end
+
+local function SerializeData(data)
+    local serialized = {}
+    for _, frame in ipairs(data) do
+        table.insert(serialized, {
+            cf = {frame.CFrame:GetComponents()},
+            vel = {frame.Velocity.X, frame.Velocity.Y, frame.Velocity.Z},
+            rvel = {frame.RotVelocity.X, frame.RotVelocity.Y, frame.RotVelocity.Z},
+            jump = frame.Jump
+        })
+    end
+    return HttpService:JSONEncode(serialized)
+end
+
+local function DeserializeData(jsonStr)
+    local decoded = HttpService:JSONDecode(jsonStr)
+    local deserialized = {}
+    for _, frame in ipairs(decoded) do
+        table.insert(deserialized, {
+            CFrame = CFrame.new(unpack(frame.cf)),
+            Velocity = Vector3.new(unpack(frame.vel)),
+            RotVelocity = Vector3.new(unpack(frame.rvel)),
+            Jump = frame.jump
+        })
+    end
+    return deserialized
+end
+
+-- ==================== FILE MANAGEMENT ====================
+local MuatFilePilihan -- Forward declaration
+local RefreshFileList -- Forward declaration
+
+RefreshFileList = function()
+    for _, child in ipairs(ScrollFileList:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+
+    if not listfiles then return end
+    
+    local files = listfiles("")
+    local count = 0
+    
+    for _, filePath in ipairs(files) do
+        if filePath:match("%.json$") then
+            local fileName = filePath:match("[^/\\]+$")
+            count = count + 1
+            
+            local TombolFile = Instance.new("TextButton")
+            TombolFile.Size = UDim2.new(1, -6, 0, 24)
+            TombolFile.BackgroundColor3 = Color3.fromRGB(50, 50, 58)
+            TombolFile.Text = "📁 " .. fileName
+            TombolFile.Font = Enum.Font.SourceSans
+            TombolFile.TextColor3 = Color3.fromRGB(220, 220, 225)
+            TombolFile.TextSize = 11
+            TombolFile.TextXAlignment = Enum.TextXAlignment.Left
+            TombolFile.Parent = ScrollFileList
+            Instance.new("UICorner", TombolFile).CornerRadius = UDim.new(0, 4)
+            
+            TombolFile.MouseButton1Click:Connect(function()
+                CurrentFileName = fileName:gsub("%.json$", "")
+                InputNama.Text = CurrentFileName
+                MuatFilePilihan(fileName)
+            end)
+        end
+    end
+    
+    ScrollFileList.CanvasSize = UDim2.new(0, 0, 0, count * 28)
+end
+
+MuatFilePilihan = function(fileName)
+    if isfile and isfile(fileName) then
+        local success, err = pcall(function()
+            local json = readfile(fileName)
+            RecordedFrameData = DeserializeData(json)
+        end)
+        if success then
+            LabelStatus.Text = "Loaded: " .. #RecordedFrameData .. " Frames"
+        else
+            LabelStatus.Text = "Gagal memuat file!"
+        end
+    end
+end
+
+local function SimpanKeFile()
+    if writefile and #RecordedFrameData > 0 then
+        local targetFile = CurrentFileName .. ".json"
+        local success, err = pcall(function()
+            local json = SerializeData(RecordedFrameData)
+            writefile(targetFile, json)
+        end)
+        if success then
+            LabelStatus.Text = "Tersimpan ke " .. targetFile
+            RefreshFileList()
+        else
+            warn("Gagal menyimpan: " .. tostring(err))
+        end
+    end
+end
+
+-- ==================== FUNGSI REKAM & PLAY ====================
+local function MulaiMerekam()
+    CurrentFileName = InputNama.Text ~= "" and InputNama.Text or "rekaman_baru"
+    table.clear(RecordedFrameData)
+    IsRecording = true
+    TombolRecord.BackgroundColor3 = Color3.fromRGB(35, 145, 35)
+    TombolRecord.Text = "🔴 MEREKAM..."
+    
+    RecordConnection = RunService.RenderStepped:Connect(function()
+        if not IsRecording then return end
+        local char = DapatkanCharacter()
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        
+        if hrp and humanoid then
+            table.insert(RecordedFrameData, {
+                CFrame = hrp.CFrame,
+                Velocity = hrp.AssemblyLinearVelocity,
+                RotVelocity = hrp.AssemblyAngularVelocity,
+                MoveDirection = humanoid.MoveDirection,
+                Jump = humanoid.Jump
+            })
+            LabelStatus.Text = "Merekam... Frame: " .. #RecordedFrameData
+        end
+    end)
+end
+
+local function BerhentiMerekam()
+    IsRecording = false
+    if RecordConnection then
+        RecordConnection:Disconnect()
+        RecordConnection = nil
+    end
+    TombolRecord.BackgroundColor3 = Color3.fromRGB(110, 60, 180)
+    TombolRecord.Text = "🔴 REKAM BARU"
+    
+    if #RecordedFrameData > 0 then
+        SimpanKeFile()
+    end
+end
+
+local function MulaiPlayback()
+    if #RecordedFrameData == 0 then
+        LabelStatus.Text = "Pilih file / rekam dulu!"
+        return
+    end
+    
+    IsPlaying = true
+    TombolPlay.BackgroundColor3 = Color3.fromRGB(35, 145, 35)
+    TombolPlay.Text = "▶ PLAY: ON"
+    
+    task.spawn(function()
+        while IsPlaying do
+            for index = 1, #RecordedFrameData do
+                if not IsPlaying then break end
+                
+                local frameData = RecordedFrameData[index]
+                local char = DapatkanCharacter()
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+                
+                if hrp and humanoid then
+                    hrp.CFrame = frameData.CFrame
+                    hrp.AssemblyLinearVelocity = frameData.Velocity
+                    hrp.AssemblyAngularVelocity = frameData.RotVelocity
+                    humanoid.Jump = frameData.Jump
+                end
+                
+                RunService.RenderStepped:Wait()
+            end
+            
+            if IsPlaying then
+                task.wait(1)
+            end
+        end
+    end)
+end
+
+local function BerhentiPlayback()
+    IsPlaying = false
+    TombolPlay.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+    TombolPlay.Text = "▶ PLAY: OFF"
+end
+
+-- ==================== EVENT BUTTON ====================
+TombolRecord.MouseButton1Click:Connect(function()
+    if IsPlaying then BerhentiPlayback() end
+    if not IsRecording then
+        MulaiMerekam()
+    else
+        BerhentiMerekam()
+    end
+end)
+
+TombolPlay.MouseButton1Click:Connect(function()
+    if IsRecording then BerhentiMerekam() end
+    if not IsPlaying then
+        MulaiPlayback()
+    else
+        BerhentiPlayback()
+    end
+end)
+
+TombolDelete.MouseButton1Click:Connect(function()
+    local targetFile = CurrentFileName .. ".json"
+    if delfile and isfile and isfile(targetFile) then
+        pcall(function()
+            delfile(targetFile)
+        end)
+        table.clear(RecordedFrameData)
+        LabelStatus.Text = "File " .. targetFile .. " dihapus!"
+        RefreshFileList()
+    else
+        LabelStatus.Text = "File tidak ditemukan!"
+    end
+end)
+
+TombolMinimize.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    if Minimized then
+        InputNama.Visible = false
+        TombolRecord.Visible = false
+        TombolPlay.Visible = false
+        LabelListTitle.Visible = false
+        ScrollFileList.Visible = false
+        TombolDelete.Visible = false
+        LabelStatus.Visible = false
+        FrameUtama:TweenSize(UDim2.fromOffset(240, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        TombolMinimize.Text = "📁"
+    else
+        FrameUtama:TweenSize(UDim2.fromOffset(240, 310), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        task.wait(0.12)
+        InputNama.Visible = true
+        TombolRecord.Visible = true
+        TombolPlay.Visible = true
+        LabelListTitle.Visible = true
+        ScrollFileList.Visible = true
+        TombolDelete.Visible = true
+        LabelStatus.Visible = true
+        TombolMinimize.Text = "—"
+    end
+end)
+
+TombolClose.MouseButton1Click:Connect(function()
+    BerhentiMerekam()
+    BerhentiPlayback()
+    ScreenGui:Destroy()
+end)
+
+RefreshFileList()
