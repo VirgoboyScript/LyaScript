@@ -1,0 +1,349 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
+
+local SlotKoordinat = {}
+local SlotUIList = {} 
+
+local JedaDiLokasi = 0.8
+local AutoFarmAktif = false
+local Minimized = false
+
+if CoreGui:FindFirstChild("BagasHubGUI") then
+    CoreGui.BagasHubGUI:Destroy()
+end
+
+-- ==================== MAIN CANVAS GUI (FIXED SIZE) ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BagasHubGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = CoreGui
+
+local FrameUtama = Instance.new("Frame")
+FrameUtama.Size = UDim2.fromOffset(270, 340) -- Ukuran diperlebar sedikit agar muat kolom input respawn
+FrameUtama.Position = UDim2.new(0.2, 0, 0.25, 0)
+FrameUtama.BackgroundColor3 = Color3.fromRGB(25, 25, 27)
+FrameUtama.BorderSizePixel = 0
+FrameUtama.Active = true
+FrameUtama.Parent = ScreenGui
+
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 10)
+UICornerMain.Parent = FrameUtama
+
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Thickness = 1.8
+FrameStroke.Color = Color3.fromRGB(70, 70, 75)
+FrameStroke.Parent = FrameUtama
+
+-- ==================== ATAS: JUDUL UTAMA ====================
+local Judul = Instance.new("TextLabel")
+Judul.Size = UDim2.new(0, 120, 0, 35)
+Judul.Position = UDim2.new(0, 12, 0, 0)
+Judul.BackgroundTransparency = 1
+Judul.Text = "Teleport/BagasHub"
+Judul.Font = Enum.Font.SourceSansBold
+Judul.TextSize = 14
+Judul.TextColor3 = Color3.fromRGB(240, 240, 245)
+Judul.TextXAlignment = Enum.TextXAlignment.Left
+Judul.Parent = FrameUtama
+
+-- ==================== ATAS KANAN: TOMBOL KONTROL ====================
+local TombolTambah = Instance.new("TextButton")
+TombolTambah.Size = UDim2.fromOffset(24, 24)
+TombolTambah.Position = UDim2.new(1, -112, 0, 6)
+TombolTambah.BackgroundColor3 = Color3.fromRGB(35, 130, 35)
+TombolTambah.Text = "+"
+TombolTambah.Font = Enum.Font.SourceSansBold
+TombolTambah.TextColor3 = Color3.new(1, 1, 1)
+TombolTambah.TextSize = 16
+Instance.new("UICorner", TombolTambah).CornerRadius = UDim.new(0, 6)
+TombolTambah.Parent = FrameUtama
+
+local TombolHapus = Instance.new("TextButton")
+TombolHapus.Size = UDim2.fromOffset(24, 24)
+TombolHapus.Position = UDim2.new(1, -84, 0, 6)
+TombolHapus.BackgroundColor3 = Color3.fromRGB(150, 35, 35)
+TombolHapus.Text = "-"
+TombolHapus.Font = Enum.Font.SourceSansBold
+TombolHapus.TextColor3 = Color3.new(1, 1, 1)
+TombolHapus.TextSize = 18
+Instance.new("UICorner", TombolHapus).CornerRadius = UDim.new(0, 6)
+TombolHapus.Parent = FrameUtama
+
+local TombolMinimize = Instance.new("TextButton")
+TombolMinimize.Size = UDim2.fromOffset(24, 24)
+TombolMinimize.Position = UDim2.new(1, -56, 0, 6)
+TombolMinimize.BackgroundColor3 = Color3.fromRGB(55, 55, 60)
+TombolMinimize.Text = "—"
+TombolMinimize.Font = Enum.Font.SourceSansBold
+TombolMinimize.TextColor3 = Color3.new(1, 1, 1)
+TombolMinimize.TextSize = 12
+Instance.new("UICorner", TombolMinimize).CornerRadius = UDim.new(0, 6)
+TombolMinimize.Parent = FrameUtama
+
+local TombolClose = Instance.new("TextButton")
+TombolClose.Size = UDim2.fromOffset(24, 24)
+TombolClose.Position = UDim2.new(1, -28, 0, 6)
+TombolClose.BackgroundColor3 = Color3.fromRGB(190, 30, 30)
+TombolClose.Text = "X"
+TombolClose.Font = Enum.Font.SourceSansBold
+TombolClose.TextColor3 = Color3.new(1, 1, 1)
+TombolClose.TextSize = 14
+Instance.new("UICorner", TombolClose).CornerRadius = UDim.new(0, 6)
+TombolClose.Parent = FrameUtama
+
+-- ==================== TENGAH: TOMBOL TOGGLE FARM ====================
+local TombolToggle = Instance.new("TextButton")
+TombolToggle.Size = UDim2.new(1, -20, 0, 28)
+TombolToggle.Position = UDim2.new(0, 10, 0, 38)
+TombolToggle.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+TombolToggle.Text = "FARM: OFF"
+TombolToggle.Font = Enum.Font.SourceSansBold
+TombolToggle.TextColor3 = Color3.new(1, 1, 1)
+TombolToggle.TextSize = 12
+TombolToggle.Parent = FrameUtama
+Instance.new("UICorner", TombolToggle).CornerRadius = UDim.new(0, 5)
+
+-- ==================== SCROLLING CONTAINER UNTUK SLOT ====================
+local SlotScrollContainer = Instance.new("ScrollingFrame")
+SlotScrollContainer.Size = UDim2.new(1, -20, 1, -80)
+SlotScrollContainer.Position = UDim2.new(0, 10, 0, 72)
+SlotScrollContainer.BackgroundTransparency = 1
+SlotScrollContainer.BorderSizePixel = 0
+SlotScrollContainer.ScrollBarThickness = 5
+SlotScrollContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+SlotScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+SlotScrollContainer.Parent = FrameUtama
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = SlotScrollContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 4)
+
+-- ==================== DRAG SYSTEM ====================
+local dragging, dragInput, dragStart, startPos
+FrameUtama.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = FrameUtama.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
+end)
+FrameUtama.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and input == dragInput then
+        local delta = input.Position - dragStart
+        FrameUtama.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==================== LOGIKA UTAMA TELEPORTASI & RESPAWN ====================
+local function DapatkanRootPart()
+    local Karakter = LocalPlayer.Character or workspace:FindFirstChild(LocalPlayer.Name)
+    if Karakter then return Karakter:FindFirstChild("HumanoidRootPart") end
+    return nil
+end
+
+local function TembakEvent()
+    pcall(function()
+        local Communication = game:GetService("ReplicatedStorage"):FindFirstChild("Communication")
+        if Communication and Communication:FindFirstChild("Events") then
+            local Events = Communication.Events:GetChildren()
+            local Event = Events[30]
+            if Event then Event:FireServer(3) end
+        end
+    end)
+end
+
+local function LakukanRespawn(jedaDetik)
+    if jedaDetik and jedaDetik > 0 then
+        task.wait(jedaDetik)
+        if LocalPlayer.Character then
+            LocalPlayer.Character:BreakJoints()
+        end
+    end
+end
+
+local function GerakKeTarget(targetCFrame)
+    local HRP = DapatkanRootPart()
+    if HRP then
+        HRP.Anchored = true
+        HRP.CFrame = targetCFrame
+        task.wait(0.1)
+        HRP.Anchored = false
+    end
+end
+
+-- Loop Auto Farm
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if AutoFarmAktif and #SlotKoordinat > 0 then
+            for i = 1, #SlotKoordinat do
+                if not AutoFarmAktif then break end
+                local slotData = SlotKoordinat[i]
+                if slotData and slotData.CFrame then
+                    GerakKeTarget(slotData.CFrame)
+                    TembakEvent()
+                    task.wait(JedaDiLokasi)
+                    
+                    -- Eksekusi Respawn jika diisi angka > 0
+                    if slotData.RespawnTimer and slotData.RespawnTimer > 0 then
+                        LakukanRespawn(slotData.RespawnTimer)
+                        -- Tunggu karakter respawn kembali sebelum ke slot berikutnya
+                        LocalPlayer.CharacterAdded:Wait()
+                        task.wait(1)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ==================== GENERATOR SLOT (UI PER SLOT DETIL) ====================
+local function BuatSlotBaru()
+    local id = #SlotKoordinat + 1
+    SlotKoordinat[id] = {CFrame = nil, RespawnTimer = 0} 
+
+    local ItemFrame = Instance.new("Frame")
+    ItemFrame.Name = "SlotItem_" .. id
+    ItemFrame.Size = UDim2.new(1, -6, 0, 26)
+    ItemFrame.BackgroundTransparency = 1
+    ItemFrame.Parent = SlotScrollContainer
+
+    -- 1. Tombol Teleport Slot
+    local TombolSlot = Instance.new("TextButton")
+    TombolSlot.Size = UDim2.new(1, -100, 1, 0)
+    TombolSlot.Position = UDim2.new(0, 0, 0, 0)
+    TombolSlot.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    TombolSlot.Text = "Slot " .. id .. " (Kosong)"
+    TombolSlot.Font = Enum.Font.SourceSans
+    TombolSlot.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TombolSlot.TextSize = 11
+    TombolSlot.Parent = ItemFrame
+    Instance.new("UICorner", TombolSlot).CornerRadius = UDim.new(0, 4)
+
+    -- 2. Tombol SET
+    local TombolSet = Instance.new("TextButton")
+    TombolSet.Size = UDim2.new(0, 35, 1, 0)
+    TombolSet.Position = UDim2.new(1, -95, 0, 0)
+    TombolSet.BackgroundColor3 = Color3.fromRGB(0, 110, 180)
+    TombolSet.Text = "Set"
+    TombolSet.Font = Enum.Font.SourceSansBold
+    TombolSet.TextColor3 = Color3.new(1, 1, 1)
+    TombolSet.TextSize = 11
+    TombolSet.Parent = ItemFrame
+    Instance.new("UICorner", TombolSet).CornerRadius = UDim.new(0, 4)
+
+    -- 3. Input Text Timer Respawn (Contoh: "3s")
+    local InputRespawn = Instance.new("TextBox")
+    InputRespawn.Size = UDim2.new(0, 55, 1, 0)
+    InputRespawn.Position = UDim2.new(1, -55, 0, 0)
+    InputRespawn.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    InputRespawn.Text = "0s"
+    InputRespawn.PlaceholderText = "Respawn"
+    InputRespawn.Font = Enum.Font.SourceSans
+    InputRespawn.TextColor3 = Color3.fromRGB(255, 200, 100)
+    InputRespawn.TextSize = 11
+    InputRespawn.Parent = ItemFrame
+    Instance.new("UICorner", InputRespawn).CornerRadius = UDim.new(0, 4)
+
+    -- Event Mengubah Timer Respawn Per Slot
+    local KoneksiTimer = InputRespawn.FocusLost:Connect(function()
+        local angka = tonumber(InputRespawn.Text:match("%d+"))
+        if angka then
+            SlotKoordinat[id].RespawnTimer = angka
+            InputRespawn.Text = angka .. "s"
+        else
+            SlotKoordinat[id].RespawnTimer = 0
+            InputRespawn.Text = "0s"
+        end
+    end)
+
+    -- Event Set Koordinat
+    local KoneksiSet = TombolSet.MouseButton1Click:Connect(function()
+        local HRP = DapatkanRootPart()
+        if HRP then
+            SlotKoordinat[id].CFrame = HRP.CFrame
+            TombolSlot.BackgroundColor3 = Color3.fromRGB(35, 130, 35)
+            TombolSlot.TextColor3 = Color3.new(1, 1, 1)
+            TombolSlot.Text = "Slot " .. id .. " (Ready)"
+        end
+    end)
+
+    -- Event Teleport Manual + Respawn Spesifik Slot
+    local KoneksiSlot = TombolSlot.MouseButton1Click:Connect(function()
+        if SlotKoordinat[id] and SlotKoordinat[id].CFrame then
+            GerakKeTarget(SlotKoordinat[id].CFrame)
+            if SlotKoordinat[id].RespawnTimer > 0 then
+                LakukanRespawn(SlotKoordinat[id].RespawnTimer)
+            end
+        end
+    end)
+
+    SlotUIList[id] = {Container = ItemFrame, Conn1 = KoneksiSet, Conn2 = KoneksiSlot, Conn3 = KoneksiTimer}
+end
+
+local function HapusSlotTerakhir()
+    local id = #SlotKoordinat
+    if id <= 0 then return end 
+
+    if SlotUIList[id] then
+        SlotUIList[id].Conn1:Disconnect()
+        SlotUIList[id].Conn2:Disconnect()
+        SlotUIList[id].Conn3:Disconnect()
+        SlotUIList[id].Container:Destroy()
+        SlotUIList[id] = nil
+        SlotKoordinat[id] = nil
+    end
+end
+
+-- ==================== BINDING ALL CONTROLS ====================
+TombolTambah.MouseButton1Click:Connect(function()
+    if not Minimized then BuatSlotBaru() end
+end)
+
+TombolHapus.MouseButton1Click:Connect(function()
+    if not Minimized then HapusSlotTerakhir() end
+end)
+
+TombolToggle.MouseButton1Click:Connect(function()
+    AutoFarmAktif = not AutoFarmAktif
+    if AutoFarmAktif then
+        TombolToggle.BackgroundColor3 = Color3.fromRGB(35, 145, 35)
+        TombolToggle.Text = "FARM: ON"
+    else
+        TombolToggle.BackgroundColor3 = Color3.fromRGB(190, 35, 35)
+        TombolToggle.Text = "FARM: OFF"
+        local HRP = DapatkanRootPart()
+        if HRP then HRP.Anchored = false end
+    end
+end)
+
+TombolMinimize.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    if Minimized then
+        SlotScrollContainer.Visible = false
+        TombolToggle.Visible = false
+        FrameUtama:TweenSize(UDim2.fromOffset(270, 35), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        TombolMinimize.Text = "📁"
+    else
+        FrameUtama:TweenSize(UDim2.fromOffset(270, 340), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, .15, true)
+        task.wait(0.12)
+        SlotScrollContainer.Visible = true
+        TombolToggle.Visible = true
+        TombolMinimize.Text = "—"
+    end
+end)
+
+TombolClose.MouseButton1Click:Connect(function()
+    AutoFarmAktif = false
+    local HRP = DapatkanRootPart()
+    if HRP then HRP.Anchored = false end
+    ScreenGui:Destroy()
+end)
+
+-- Buat slot pertama secara bawaan saat script dijalankan
+BuatSlotBaru()
