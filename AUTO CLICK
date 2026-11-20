@@ -1,0 +1,311 @@
+-- ==========================================
+-- MULTI-POINT AUTO CLICKER (TOUCH TAP MODE)
+-- ==========================================
+
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+-- Hapus GUI lama jika ada
+if CoreGui:FindFirstChild("TouchClickerGUI") then
+    CoreGui.TouchClickerGUI:Destroy()
+end
+
+-- ScreenGui Principal
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TouchClickerGUI"
+ScreenGui.Parent = CoreGui or Players.LocalPlayer:WaitForChild("PlayerGui")
+
+-- Variable Utama
+local points = {}          
+local isClicking = false   
+local clickDelay = 0.1     
+local pointCounter = 0
+
+-- 1. FRAME UTAMA (BLUE BACKGROUND & COMPACT)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 180, 0, 160)
+MainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 25, 50) -- Biru
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 6)
+MainCorner.Parent = MainFrame
+
+-- 2. TITLE BAR & KONTROL ATAS
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 26)
+TitleBar.BackgroundColor3 = Color3.fromRGB(10, 18, 38)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 6)
+TitleCorner.Parent = TitleBar
+
+local TitleText = Instance.new("TextLabel")
+TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Position = UDim2.new(0, 6, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Text = "Touch Clicker (Tap)"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleText.TextSize = 11
+TitleText.Font = Enum.Font.SourceSansBold
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Parent = TitleBar
+
+-- Tombol Close (X) - MERAH
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Position = UDim2.new(1, -22, 0, 3)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 12
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+-- Tombol Minimize (-) - UNGU & TEKS PUTIH
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Position = UDim2.new(1, -45, 0, 3)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 14
+MinimizeBtn.Font = Enum.Font.SourceSansBold
+MinimizeBtn.Parent = TitleBar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.Parent = MinimizeBtn
+
+-- CONTAINER ISI PANEL
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, 0, 1, -26)
+ContentFrame.Position = UDim2.new(0, 0, 0, 26)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- 3. TOMBOL START / STOP
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0.9, 0, 0, 28)
+ToggleBtn.Position = UDim2.new(0.05, 0, 0.08, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+ToggleBtn.Text = "START"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 13
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.Parent = ContentFrame
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 4)
+ToggleCorner.Parent = ToggleBtn
+
+-- 4. PENGATURAN KECEPATAN (DETIK)
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(0.5, 0, 0, 22)
+SpeedLabel.Position = UDim2.new(0.05, 0, 0.35, 0)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Text = "Delay (detik):"
+SpeedLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+SpeedLabel.TextSize = 12
+SpeedLabel.Font = Enum.Font.SourceSans
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpeedLabel.Parent = ContentFrame
+
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Size = UDim2.new(0.38, 0, 0, 22)
+SpeedInput.Position = UDim2.new(0.57, 0, 0.35, 0)
+SpeedInput.BackgroundColor3 = Color3.fromRGB(25, 40, 75)
+SpeedInput.Text = "0.1"
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedInput.TextSize = 12
+SpeedInput.Font = Enum.Font.SourceSansBold
+SpeedInput.Parent = ContentFrame
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 4)
+InputCorner.Parent = SpeedInput
+
+-- 5. KONTROL TITIK (+ DAN - DELETE)
+local AddPointBtn = Instance.new("TextButton")
+AddPointBtn.Size = UDim2.new(0.42, 0, 0, 26)
+AddPointBtn.Position = UDim2.new(0.05, 0, 0.65, 0)
+AddPointBtn.BackgroundColor3 = Color3.fromRGB(30, 100, 200)
+AddPointBtn.Text = "+ Titik"
+AddPointBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AddPointBtn.TextSize = 12
+AddPointBtn.Font = Enum.Font.SourceSansBold
+AddPointBtn.Parent = ContentFrame
+
+local AddCorner = Instance.new("UICorner")
+AddCorner.CornerRadius = UDim.new(0, 4)
+AddCorner.Parent = AddPointBtn
+
+-- Tombol Hapus Titik (-) - MERAH
+local DelPointBtn = Instance.new("TextButton")
+DelPointBtn.Size = UDim2.new(0.42, 0, 0, 26)
+DelPointBtn.Position = UDim2.new(0.53, 0, 0.65, 0)
+DelPointBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+DelPointBtn.Text = "- Delete"
+DelPointBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DelPointBtn.TextSize = 12
+DelPointBtn.Font = Enum.Font.SourceSansBold
+DelPointBtn.Parent = ContentFrame
+
+local DelCorner = Instance.new("UICorner")
+DelCorner.CornerRadius = UDim.new(0, 4)
+DelCorner.Parent = DelPointBtn
+
+-- ==========================================
+-- LOGIKA AKSI DAN FUNGSI TOUCH (TAB HP)
+-- ==========================================
+
+local function createPoint()
+    pointCounter = pointCounter + 1
+    
+    local Marker = Instance.new("Frame")
+    Marker.Name = "Marker_" .. pointCounter
+    Marker.Size = UDim2.new(0, 26, 0, 26)
+    Marker.Position = UDim2.new(0.5, -13 + (pointCounter * 12), 0.5, -13)
+    Marker.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    Marker.BackgroundTransparency = 0.2
+    Marker.Active = true
+    Marker.Parent = ScreenGui
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(1, 0)
+    Corner.Parent = Marker
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(255, 255, 255)
+    Stroke.Thickness = 1.5
+    Stroke.Parent = Marker
+
+    local NumberLabel = Instance.new("TextLabel")
+    NumberLabel.Size = UDim2.new(1, 0, 1, 0)
+    NumberLabel.BackgroundTransparency = 1
+    NumberLabel.Text = tostring(pointCounter)
+    NumberLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    NumberLabel.TextSize = 12
+    NumberLabel.Font = Enum.Font.SourceSansBold
+    NumberLabel.Parent = Marker
+
+    -- Dragging Logic
+    local isDragging = false
+    local dragStart, startPos
+
+    Marker.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isDragging = true
+            dragStart = input.Position
+            startPos = Marker.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    isDragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            Marker.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    table.insert(points, Marker)
+end
+
+-- Titik awal
+createPoint()
+
+AddPointBtn.MouseButton1Click:Connect(function()
+    createPoint()
+end)
+
+DelPointBtn.MouseButton1Click:Connect(function()
+    if #points > 0 then
+        local lastMarker = table.remove(points, #points)
+        lastMarker:Destroy()
+        pointCounter = pointCounter - 1
+    end
+end)
+
+-- Minimize Event
+local isMinimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        ContentFrame.Visible = false
+        MainFrame.Size = UDim2.new(0, 180, 0, 26)
+    else
+        ContentFrame.Visible = true
+        MainFrame.Size = UDim2.new(0, 180, 0, 160)
+    end
+end)
+
+-- Close Event
+CloseBtn.MouseButton1Click:Connect(function()
+    isClicking = false
+    ScreenGui:Destroy()
+end)
+
+-- Kecepatan Event
+SpeedInput.FocusLost:Connect(function()
+    local val = tonumber(SpeedInput.Text)
+    if val and val >= 0 then
+        clickDelay = val
+    else
+        SpeedInput.Text = tostring(clickDelay)
+    end
+end)
+
+-- Toggle Start/Stop
+ToggleBtn.MouseButton1Click:Connect(function()
+    isClicking = not isClicking
+    if isClicking then
+        ToggleBtn.Text = "STOP"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(220, 40, 40)
+    else
+        ToggleBtn.Text = "START"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 60)
+    end
+end)
+
+-- SIMULASI TOUCH SCREEN (TAB HP) TANPA MENGGESER MOUSE
+task.spawn(function()
+    local touchId = 1001 -- ID unik untuk simulasi sentuhan
+    while true do
+        if isClicking and #points > 0 then
+            for idx, marker in ipairs(points) do
+                if not isClicking then break end
+                
+                local targetX = marker.AbsolutePosition.X + (marker.AbsoluteSize.X / 2)
+                local targetY = marker.AbsolutePosition.Y + (marker.AbsoluteSize.Y / 2) + 36
+                
+                -- Mode Touch Screen (Mulai Sentuh -> Lepas Sentuh)
+                VirtualInputManager:SendTouchEvent(touchId + idx, 0, targetX, targetY) -- Touch Begin
+                task.wait(0.01)
+                VirtualInputManager:SendTouchEvent(touchId + idx, 2, targetX, targetY) -- Touch End
+                
+                task.wait(clickDelay)
+            end
+        else
+            task.wait(0.1)
+        end
+    end
+end)
