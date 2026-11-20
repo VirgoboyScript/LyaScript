@@ -1,0 +1,21 @@
+-- Script Auto Reconnect Saja
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+
+local player = Players.LocalPlayer
+
+-- Deteksi saat muncul pesan error putus koneksi (disconnect)
+GuiService.ErrorMessageChanged:Connect(function()
+    local errorMsg = GuiService:GetErrorMessage()
+    if errorMsg and errorMsg ~= "" then
+        task.spawn(function()
+            while true do
+                pcall(function()
+                    TeleportService:Teleport(game.PlaceId, player)
+                end)
+                task.wait(2)
+            end
+        end)
+    end
+end)
