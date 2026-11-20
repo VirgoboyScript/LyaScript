@@ -3,6 +3,7 @@ local runService = cloneref and cloneref(game:GetService("RunService")) or game:
 local tweenService = cloneref and cloneref(game:GetService("TweenService")) or game:GetService("TweenService")
 local players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
 local MarketplaceService = cloneref and cloneref(game:GetService("MarketplaceService")) or game:GetService("MarketplaceService")
+local HttpService = cloneref and cloneref(game:GetService("HttpService")) or game:GetService("HttpService")
 
 local localPlayer = players.LocalPlayer
 
@@ -21,9 +22,58 @@ if coreGui:FindFirstChild("VirgoboyHubUI") then
 end
 
 -- ====================================================
+--  SISTEM PENYIMPANAN PERMANEN (FILE EXECUTOR)
+-- ====================================================
+local SAVE_FOLDER = "VirgoboyHub_Config"
+local SAVE_FILE = SAVE_FOLDER .. "/scripts_data.json"
+
+local function hasFileSystem()
+	return typeof(writefile) == "function"
+		and typeof(readfile) == "function"
+		and typeof(isfile) == "function"
+		and typeof(makefolder) == "function"
+end
+
+local savedData = {
+	CustomMaps = {},
+	CustomScripts = {},
+	DeletedDefaultMaps = {},
+	DeletedDefaultScripts = {}
+}
+
+local function savePersistentData()
+	if not hasFileSystem() then return false end
+	local ok = pcall(function()
+		if not (typeof(isfolder) == "function" and isfolder(SAVE_FOLDER)) then
+			pcall(makefolder, SAVE_FOLDER)
+		end
+		writefile(SAVE_FILE, HttpService:JSONEncode(savedData))
+	end)
+	return ok
+end
+
+local function loadPersistentData()
+	if not hasFileSystem() then return end
+	pcall(function()
+		if isfile(SAVE_FILE) then
+			local raw = readfile(SAVE_FILE)
+			local decoded = HttpService:JSONDecode(raw)
+			if typeof(decoded) == "table" then
+				savedData.CustomMaps = typeof(decoded.CustomMaps) == "table" and decoded.CustomMaps or {}
+				savedData.CustomScripts = typeof(decoded.CustomScripts) == "table" and decoded.CustomScripts or {}
+				savedData.DeletedDefaultMaps = typeof(decoded.DeletedDefaultMaps) == "table" and decoded.DeletedDefaultMaps or {}
+				savedData.DeletedDefaultScripts = typeof(decoded.DeletedDefaultScripts) == "table" and decoded.DeletedDefaultScripts or {}
+			end
+		end
+	end)
+end
+
+loadPersistentData()
+
+-- ====================================================
 --  DAFTAR MAP BARU
 -- ====================================================
-local listMap = {
+local defaultMaps = {
 	{
 		Nama = "🕷 Guiby: Monster vs Bayi",
 		Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoScript/Roblox/refs/heads/main/Guiby.lua"))()]]
@@ -89,7 +139,7 @@ local listMap = {
 -- ====================================================
 --  DAFTAR SCRIPT LAINNYA
 -- ====================================================
-local listScriptLainnya = {
+local defaultScripts = {
 	{
 		Nama = "🛡️ Anti AFK",
 		Tag = "AFK",
@@ -170,12 +220,60 @@ local listScriptLainnya = {
 		Tag = "TOOL",
 		Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/VirgoboyScript/LyaScript/refs/heads/main/UTILITY"))()]]
 	},
-    {
+	{
 		Nama = "🍼 Milk XP",
 		Tag = "UGC",
 		Script = [[loadstring(game:HttpGet("https://raw.githubusercontent.com/Vircap02/Script/refs/heads/main/MILKXP"))()]]
 	},
 }
+
+local listMap = {}
+local listScriptLainnya = {}
+
+local function rebuildLists()
+	table.clear(listMap)
+	table.clear(listScriptLainnya)
+
+	for _, item in ipairs(defaultMaps) do
+		if not savedData.DeletedDefaultMaps[item.Nama] then
+			table.insert(listMap, {
+				Nama = item.Nama,
+				Script = item.Script,
+				IsCustom = false
+			})
+		end
+	end
+	for idx, item in ipairs(savedData.CustomMaps) do
+		table.insert(listMap, {
+			Nama = item.Nama,
+			Script = item.Script,
+			IsCustom = true,
+			CustomIndex = idx
+		})
+	end
+
+	for _, item in ipairs(defaultScripts) do
+		if not savedData.DeletedDefaultScripts[item.Nama] then
+			table.insert(listScriptLainnya, {
+				Nama = item.Nama,
+				Tag = item.Tag or "SCRIPT",
+				Script = item.Script,
+				IsCustom = false
+			})
+		end
+	end
+	for idx, item in ipairs(savedData.CustomScripts) do
+		table.insert(listScriptLainnya, {
+			Nama = item.Nama,
+			Tag = item.Tag or "CUSTOM",
+			Script = item.Script,
+			IsCustom = true,
+			CustomIndex = idx
+		})
+	end
+end
+
+rebuildLists()
 -- ====================================================
 
 local COL_BG = Color3.fromRGB(15, 15, 18)
@@ -253,29 +351,29 @@ notifyLayout.Parent = notifyContainer
 
 local function showNotify(titleText, descText, duration)
 	duration = duration or 3
-	
+
 	local notif = Instance.new("Frame")
 	notif.Size = UDim2.new(1, 0, 0, 50)
 	notif.BackgroundColor3 = COL_BG
 	notif.BackgroundTransparency = 0.1
 	notif.ClipsDescendants = true
 	notif.Parent = notifyContainer
-	
+
 	local nCorner = Instance.new("UICorner", notif)
 	nCorner.CornerRadius = UDim.new(0, 8)
-	
+
 	local s = Instance.new("UIStroke")
 	s.Thickness = 1.2
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Color = Color3.new(1, 1, 1)
 	s.Parent = notif
-	
+
 	local g = Instance.new("UIGradient")
 	g.Color = ColorThemes[currentThemeName].Sequence
 	g.Rotation = 45
 	g.Parent = s
 	table.insert(allGrads, g)
-	
+
 	local nTitle = Instance.new("TextLabel")
 	nTitle.Size = UDim2.new(1, -16, 0, 18)
 	nTitle.Position = UDim2.new(0, 10, 0, 6)
@@ -287,7 +385,7 @@ local function showNotify(titleText, descText, duration)
 	nTitle.TextXAlignment = Enum.TextXAlignment.Left
 	nTitle.Parent = notif
 	themeObjectsToUpdate[nTitle] = "TextColor3"
-	
+
 	local nDesc = Instance.new("TextLabel")
 	nDesc.Size = UDim2.new(1, -16, 0, 20)
 	nDesc.Position = UDim2.new(0, 10, 0, 22)
@@ -298,7 +396,7 @@ local function showNotify(titleText, descText, duration)
 	nDesc.TextColor3 = TEXT_MAIN
 	nDesc.TextXAlignment = Enum.TextXAlignment.Left
 	nDesc.Parent = notif
-	
+
 	local pBar = Instance.new("Frame")
 	pBar.Size = UDim2.new(1, 0, 0, 3)
 	pBar.Position = UDim2.new(0, 0, 1, -3)
@@ -306,11 +404,11 @@ local function showNotify(titleText, descText, duration)
 	pBar.BorderSizePixel = 0
 	pBar.Parent = notif
 	themeObjectsToUpdate[pBar] = "BackgroundColor3"
-	
+
 	notif.Position = UDim2.new(1, 50, 0, 0)
 	tweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
 	tweenService:Create(pBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 3)}):Play()
-	
+
 	task.delay(duration, function()
 		if notif and notif.Parent then
 			local t = tweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {Position = UDim2.new(1, 50, 0, 0)})
@@ -330,11 +428,11 @@ local function updateTheme(themeName)
 	currentThemeName = themeName
 	local themeData = ColorThemes[themeName]
 	COL_ACCENT = themeData.Accent
-	
+
 	for _, g in ipairs(allGrads) do
 		g.Color = themeData.Sequence
 	end
-	
+
 	for obj, prop in pairs(themeObjectsToUpdate) do
 		if obj and obj.Parent then
 			obj[prop] = COL_ACCENT
@@ -350,23 +448,23 @@ local function animStroke(parent, thick)
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Color = Color3.new(1, 1, 1)
 	s.Parent = parent
-	
+
 	local g = Instance.new("UIGradient")
 	g.Color = ColorThemes[currentThemeName].Sequence
 	g.Rotation = 45
 	g.Parent = s
-	
+
 	table.insert(allGrads, g)
 	table.insert(allStrokes, s)
 	return s
 end
 
-local FULL_H = 250
+local FULL_H = 260
 local MINI_H = 42
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 340, 0, FULL_H)
-main.Position = UDim2.new(0.5, -170, 0.4, -FULL_H // 2)
+main.Size = UDim2.new(0, 355, 0, FULL_H)
+main.Position = UDim2.new(0.5, -177, 0.4, -FULL_H // 2)
 main.BackgroundColor3 = COL_BG
 main.BackgroundTransparency = 0.15
 main.BorderSizePixel = 0
@@ -414,7 +512,7 @@ local desc = Instance.new("TextLabel")
 desc.Size = UDim2.new(1, -60, 0, 10)
 desc.Position = UDim2.new(0, 14, 0, 24)
 desc.BackgroundTransparency = 1
-desc.Text = "Premium Multi-Script Hub"
+desc.Text = "Premium Multi-Script Hub + Persistent Manager"
 desc.Font = Enum.Font.GothamBold
 desc.TextSize = 9
 desc.TextColor3 = COL_ACCENT
@@ -467,41 +565,41 @@ local savedTransparency = 0.4
 
 local function toggleMinimize()
 	minimized = not minimized
-	
+
 	if minimized then
 		savedTransparency = mainBgImage.ImageTransparency
 		header.Visible = false
 		mainBgImage.ImageTransparency = 1
-		
+
 		for _, child in ipairs(main:GetChildren()) do
 			if child:IsA("Frame") then
 				child.Visible = false
 			end
 		end
-		
+
 		tweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
 			Size = UDim2.new(0, 50, 0, 50),
 			BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 			BackgroundTransparency = 0.2
 		}):Play()
-		
+
 		tweenService:Create(mainCorner, TweenInfo.new(0.25), {CornerRadius = UDim.new(0, 25)}):Play()
-		
+
 		task.wait(0.2)
 		minIcon.Visible = true
 		showNotify("UI Minimized", "Klik ikon bulat untuk membuka kembali panel.", 2)
 	else
 		minIcon.Visible = false
 		mainBgImage.ImageTransparency = savedTransparency
-		
+
 		tweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 340, 0, FULL_H),
+			Size = UDim2.new(0, 355, 0, FULL_H),
 			BackgroundColor3 = COL_BG,
 			BackgroundTransparency = 0.15
 		}):Play()
-		
+
 		tweenService:Create(mainCorner, TweenInfo.new(0.3), {CornerRadius = UDim.new(0, 12)}):Play()
-		
+
 		task.wait(0.1)
 		header.Visible = true
 		for _, child in ipairs(main:GetChildren()) do
@@ -518,7 +616,7 @@ minIcon.MouseButton1Click:Connect(toggleMinimize)
 
 -- ====================================================
 local sidebar = Instance.new("Frame")
-sidebar.Size = UDim2.new(0, 88, 1, -MINI_H - 10)
+sidebar.Size = UDim2.new(0, 92, 1, -MINI_H - 10)
 sidebar.Position = UDim2.new(0, 10, 0, MINI_H)
 sidebar.BackgroundColor3 = COL_PANEL
 sidebar.BackgroundTransparency = 0.2
@@ -528,8 +626,8 @@ Instance.new("UICorner", sidebar).CornerRadius = UDim.new(0, 8)
 animStroke(sidebar, 1)
 
 local container = Instance.new("Frame")
-container.Size = UDim2.new(1, -118, 1, -MINI_H - 10)
-container.Position = UDim2.new(0, 108, 0, MINI_H)
+container.Size = UDim2.new(1, -122, 1, -MINI_H - 10)
+container.Position = UDim2.new(0, 112, 0, MINI_H)
 container.BackgroundTransparency = 1
 container.ZIndex = 2
 container.Parent = main
@@ -551,46 +649,47 @@ end
 local homePage = createPage("Home")
 local mapPage = createPage("Map")
 local otherScriptPage = createPage("Script Lainnya")
+local managerPage = createPage("+ Script")
 local settingPage = createPage("Setting")
 
 local tabLayout = Instance.new("UIListLayout")
-tabLayout.Padding = UDim.new(0, 5)
+tabLayout.Padding = UDim.new(0, 4)
 tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
 tabLayout.Parent = sidebar
 
 local sidebarPad = Instance.new("UIPadding")
-sidebarPad.PaddingTop = UDim.new(0, 6)
+sidebarPad.PaddingTop = UDim.new(0, 5)
 sidebarPad.PaddingLeft = UDim.new(0, 5)
 sidebarPad.PaddingRight = UDim.new(0, 5)
 sidebarPad.Parent = sidebar
 
 local function registerTab(name, order)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 0, 29)
+	btn.Size = UDim2.new(1, 0, 0, 28)
 	btn.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 	btn.BackgroundTransparency = 1
 	btn.Text = name
 	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 10
+	btn.TextSize = 9.5
 	btn.TextWrapped = true
 	btn.TextColor3 = TEXT_SUB
 	btn.LayoutOrder = order or 1
 	btn.ZIndex = 2
 	btn.Parent = sidebar
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-	
+
 	btn.MouseEnter:Connect(function()
 		if pages[name] and not pages[name].Visible then
 			tweenService:Create(btn, TweenInfo.new(0.15), {BackgroundTransparency = 0.55, TextColor3 = TEXT_MAIN}):Play()
 		end
 	end)
-	
+
 	btn.MouseLeave:Connect(function()
 		if pages[name] and not pages[name].Visible then
 			tweenService:Create(btn, TweenInfo.new(0.15), {BackgroundTransparency = 1, TextColor3 = TEXT_SUB}):Play()
 		end
 	end)
-	
+
 	btn.MouseButton1Click:Connect(function()
 		for tName, tBtn in pairs(tabs) do
 			themeObjectsToUpdate[tBtn] = nil
@@ -602,14 +701,15 @@ local function registerTab(name, order)
 		pages[name].Visible = true
 		showNotify("Tab Changed", "Membuka halaman: " .. name, 1.5)
 	end)
-	
+
 	tabs[name] = btn
 end
 
 registerTab("Home", 1)
 registerTab("Map", 2)
 registerTab("Script Lainnya", 3)
-registerTab("Setting", 4)
+registerTab("+ Script", 4)
+registerTab("Setting", 5)
 
 tabs["Home"].BackgroundTransparency = 0.2
 tabs["Home"].BackgroundColor3 = COL_ACCENT
@@ -621,52 +721,89 @@ themeObjectsToUpdate[tabs["Home"]] = "BackgroundColor3"
 -- CONTENT: HOME (User Data)
 ----------------------------------------------------
 local profileImg = Instance.new("ImageLabel")
-profileImg.Size = UDim2.new(0, 60, 0, 60)
-profileImg.Position = UDim2.new(0, 5, 0, 10)
+profileImg.Size = UDim2.new(0, 56, 0, 56)
+profileImg.Position = UDim2.new(0, 5, 0, 8)
 profileImg.BackgroundColor3 = COL_PANEL
 profileImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. localPlayer.UserId .. "&w=150&h=150"
 profileImg.ZIndex = 2
 profileImg.Parent = homePage
-Instance.new("UICorner", profileImg).CornerRadius = UDim.new(0, 30)
+Instance.new("UICorner", profileImg).CornerRadius = UDim.new(0, 28)
 animStroke(profileImg, 1)
 
 local usernameLabel = Instance.new("TextLabel")
-usernameLabel.Size = UDim2.new(1, -75, 0, 20)
-usernameLabel.Position = UDim2.new(0, 75, 0, 12)
+usernameLabel.Size = UDim2.new(1, -70, 0, 20)
+usernameLabel.Position = UDim2.new(0, 70, 0, 10)
 usernameLabel.BackgroundTransparency = 1
 usernameLabel.Text = "User: " .. localPlayer.Name
 usernameLabel.Font = Enum.Font.GothamBold
-usernameLabel.TextSize = 12
+usernameLabel.TextSize = 11
 usernameLabel.TextColor3 = TEXT_MAIN
 usernameLabel.TextXAlignment = Enum.TextXAlignment.Left
 usernameLabel.ZIndex = 2
 usernameLabel.Parent = homePage
 
 local accountAgeLabel = Instance.new("TextLabel")
-accountAgeLabel.Size = UDim2.new(1, -75, 0, 20)
-accountAgeLabel.Position = UDim2.new(0, 75, 0, 32)
+accountAgeLabel.Size = UDim2.new(1, -70, 0, 20)
+accountAgeLabel.Position = UDim2.new(0, 70, 0, 30)
 accountAgeLabel.BackgroundTransparency = 1
 accountAgeLabel.Text = "Account Age: " .. localPlayer.AccountAge .. " Days"
 accountAgeLabel.Font = Enum.Font.GothamMedium
-accountAgeLabel.TextSize = 11
+accountAgeLabel.TextSize = 10
 accountAgeLabel.TextColor3 = TEXT_SUB
 accountAgeLabel.TextXAlignment = Enum.TextXAlignment.Left
 accountAgeLabel.ZIndex = 2
 accountAgeLabel.Parent = homePage
 
 local welcomeLabel = Instance.new("TextLabel")
-welcomeLabel.Size = UDim2.new(1, -10, 0, 44)
-welcomeLabel.Position = UDim2.new(0, 5, 0, 85)
+welcomeLabel.Size = UDim2.new(1, -10, 0, 56)
+welcomeLabel.Position = UDim2.new(0, 5, 0, 76)
 welcomeLabel.BackgroundColor3 = COL_PANEL
 welcomeLabel.BackgroundTransparency = 0.2
-welcomeLabel.Text = "Welcome to Virgoboy Hub!\n" .. #listMap .. " Map Scripts & " .. #listScriptLainnya .. " Extra Scripts Ready."
+welcomeLabel.Text = "Welcome to Virgoboy Hub!\n" .. #listMap .. " Map Scripts & " .. #listScriptLainnya .. " Extra Scripts Ready.\nSave Mode: " .. (hasFileSystem() and "Permanent File Active" or "Session Only (No File API)")
 welcomeLabel.Font = Enum.Font.Gotham
-welcomeLabel.TextSize = 10
+welcomeLabel.TextSize = 9.5
 welcomeLabel.TextColor3 = TEXT_SUB
 welcomeLabel.ZIndex = 2
 welcomeLabel.Parent = homePage
 Instance.new("UICorner", welcomeLabel).CornerRadius = UDim.new(0, 6)
 animStroke(welcomeLabel, 1)
+
+local function refreshHomeStats()
+	welcomeLabel.Text = "Welcome to Virgoboy Hub!\n" .. #listMap .. " Map Scripts & " .. #listScriptLainnya .. " Extra Scripts Ready.\nSave Mode: " .. (hasFileSystem() and "Permanent File Active" or "Session Only (No File API)")
+end
+
+----------------------------------------------------
+-- FORWARD DECLARATIONS UNTUK RENDER ULANG LIST
+----------------------------------------------------
+local renderMapList
+local renderOtherScriptList
+local searchInput
+
+local function deleteMapItem(mapData)
+	if mapData.IsCustom and mapData.CustomIndex then
+		table.remove(savedData.CustomMaps, mapData.CustomIndex)
+	else
+		savedData.DeletedDefaultMaps[mapData.Nama] = true
+	end
+	savePersistentData()
+	rebuildLists()
+	renderMapList()
+	refreshHomeStats()
+	showNotify("Dihapus Permanen", mapData.Nama .. " dihapus dari Map.", 2)
+end
+
+local function deleteOtherScriptItem(scriptItem)
+	if scriptItem.IsCustom and scriptItem.CustomIndex then
+		table.remove(savedData.CustomScripts, scriptItem.CustomIndex)
+	else
+		savedData.DeletedDefaultScripts[scriptItem.Nama] = true
+	end
+	savePersistentData()
+	rebuildLists()
+	renderOtherScriptList()
+	refreshHomeStats()
+	showNotify("Dihapus Permanen", scriptItem.Nama .. " dihapus dari Script Lainnya.", 2)
+end
 
 ----------------------------------------------------
 -- CONTENT: MAP
@@ -697,41 +834,80 @@ mapLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 	mapScroll.CanvasSize = UDim2.new(0, 0, 0, mapLayout.AbsoluteContentSize.Y + 10)
 end)
 
-for _, mapData in ipairs(listMap) do
-	local mapBtn = Instance.new("TextButton")
-	mapBtn.Size = UDim2.new(1, 0, 0, 40)
-	mapBtn.BackgroundColor3 = COL_PANEL
-	mapBtn.BackgroundTransparency = 0.2
-	mapBtn.Text = mapData.Nama
-	mapBtn.Font = Enum.Font.GothamBold
-	mapBtn.TextSize = 11
-	mapBtn.TextColor3 = TEXT_MAIN
-	mapBtn.ZIndex = 2
-	mapBtn.Parent = mapScroll
-	Instance.new("UICorner", mapBtn).CornerRadius = UDim.new(0, 6)
-	animStroke(mapBtn, 1)
+renderMapList = function()
+	for _, child in ipairs(mapScroll:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
 
-	mapBtn.MouseEnter:Connect(function()
-		tweenService:Create(mapBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
-	end)
-	mapBtn.MouseLeave:Connect(function()
-		tweenService:Create(mapBtn, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
-	end)
+	for idx, mapData in ipairs(listMap) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 38)
+		row.BackgroundColor3 = COL_PANEL
+		row.BackgroundTransparency = 0.2
+		row.LayoutOrder = idx
+		row.ZIndex = 2
+		row.Parent = mapScroll
+		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+		animStroke(row, 1)
 
-	mapBtn.MouseButton1Click:Connect(function()
-		showNotify("Executing Script...", mapData.Nama, 3)
-		task.wait(0.5)
-		task.spawn(function()
-			pcall(function()
-				assert(loadstring(mapData.Script))()
-			end)
+		local mapBtn = Instance.new("TextButton")
+		mapBtn.Size = UDim2.new(1, -38, 1, 0)
+		mapBtn.Position = UDim2.new(0, 6, 0, 0)
+		mapBtn.BackgroundTransparency = 1
+		mapBtn.Text = mapData.Nama .. (mapData.IsCustom and " [SAVED]" or "")
+		mapBtn.Font = Enum.Font.GothamBold
+		mapBtn.TextSize = 10
+		mapBtn.TextColor3 = TEXT_MAIN
+		mapBtn.TextXAlignment = Enum.TextXAlignment.Left
+		mapBtn.TextTruncate = Enum.TextTruncate.AtEnd
+		mapBtn.ZIndex = 3
+		mapBtn.Parent = row
+
+		local delBtn = Instance.new("TextButton")
+		delBtn.Size = UDim2.new(0, 26, 0, 24)
+		delBtn.Position = UDim2.new(1, -31, 0.5, -12)
+		delBtn.BackgroundColor3 = Color3.fromRGB(165, 45, 45)
+		delBtn.Text = "🗑"
+		delBtn.Font = Enum.Font.GothamBold
+		delBtn.TextSize = 11
+		delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		delBtn.ZIndex = 3
+		delBtn.Parent = row
+		Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
+
+		row.MouseEnter:Connect(function()
+			tweenService:Create(row, TweenInfo.new(0.15), {BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(30, 30, 38)}):Play()
 		end)
-		gui:Destroy()
-	end)
+		row.MouseLeave:Connect(function()
+			tweenService:Create(row, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
+		end)
+
+		mapBtn.MouseButton1Click:Connect(function()
+			showNotify("Executing Script...", mapData.Nama, 3)
+			task.wait(0.3)
+			task.spawn(function()
+				local ok, err = pcall(function()
+					assert(loadstring(mapData.Script))()
+				end)
+				if not ok then
+					showNotify("Script Error", tostring(err), 3)
+				end
+			end)
+			gui:Destroy()
+		end)
+
+		delBtn.MouseButton1Click:Connect(function()
+			deleteMapItem(mapData)
+		end)
+	end
 end
 
+renderMapList()
+
 ----------------------------------------------------
--- CONTENT: SCRIPT LAINNYA (KEREN + SEARCH + BADGE)
+-- CONTENT: SCRIPT LAINNYA (KEREN + SEARCH + BADGE + DELETE)
 ----------------------------------------------------
 local searchBoxFrame = Instance.new("Frame")
 searchBoxFrame.Size = UDim2.new(1, -5, 0, 28)
@@ -743,7 +919,7 @@ searchBoxFrame.Parent = otherScriptPage
 Instance.new("UICorner", searchBoxFrame).CornerRadius = UDim.new(0, 6)
 animStroke(searchBoxFrame, 1)
 
-local searchInput = Instance.new("TextBox")
+searchInput = Instance.new("TextBox")
 searchInput.Size = UDim2.new(1, -14, 1, 0)
 searchInput.Position = UDim2.new(0, 8, 0, 0)
 searchInput.BackgroundTransparency = 1
@@ -787,85 +963,7 @@ end)
 
 local scriptCardEntries = {}
 
-for idx, scriptItem in ipairs(listScriptLainnya) do
-	local card = Instance.new("Frame")
-	card.Size = UDim2.new(1, 0, 0, 36)
-	card.BackgroundColor3 = COL_PANEL
-	card.BackgroundTransparency = 0.2
-	card.LayoutOrder = idx
-	card.ZIndex = 2
-	card.Parent = otherScroll
-	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
-	animStroke(card, 1)
-
-	local nameLbl = Instance.new("TextLabel")
-	nameLbl.Size = UDim2.new(1, -105, 1, 0)
-	nameLbl.Position = UDim2.new(0, 9, 0, 0)
-	nameLbl.BackgroundTransparency = 1
-	nameLbl.Text = scriptItem.Nama
-	nameLbl.Font = Enum.Font.GothamBold
-	nameLbl.TextSize = 10
-	nameLbl.TextColor3 = TEXT_MAIN
-	nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-	nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
-	nameLbl.ZIndex = 3
-	nameLbl.Parent = card
-
-	local tagBadge = Instance.new("TextLabel")
-	tagBadge.Size = UDim2.new(0, 44, 0, 16)
-	tagBadge.Position = UDim2.new(1, -96, 0.5, -8)
-	tagBadge.BackgroundColor3 = COL_ACCENT
-	tagBadge.BackgroundTransparency = 0.25
-	tagBadge.Text = scriptItem.Tag or "SCRIPT"
-	tagBadge.Font = Enum.Font.GothamBlack
-	tagBadge.TextSize = 8
-	tagBadge.TextColor3 = TEXT_MAIN
-	tagBadge.ZIndex = 3
-	tagBadge.Parent = card
-	Instance.new("UICorner", tagBadge).CornerRadius = UDim.new(0, 4)
-	themeObjectsToUpdate[tagBadge] = "BackgroundColor3"
-
-	local runBtn = Instance.new("TextButton")
-	runBtn.Size = UDim2.new(0, 42, 0, 22)
-	runBtn.Position = UDim2.new(1, -47, 0.5, -11)
-	runBtn.BackgroundColor3 = COL_ACCENT
-	runBtn.Text = "RUN"
-	runBtn.Font = Enum.Font.GothamBlack
-	runBtn.TextSize = 9
-	runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	runBtn.ZIndex = 3
-	runBtn.Parent = card
-	Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 5)
-	themeObjectsToUpdate[runBtn] = "BackgroundColor3"
-
-	card.MouseEnter:Connect(function()
-		tweenService:Create(card, TweenInfo.new(0.15), {BackgroundTransparency = 0.08, BackgroundColor3 = Color3.fromRGB(28, 28, 36)}):Play()
-	end)
-	card.MouseLeave:Connect(function()
-		tweenService:Create(card, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
-	end)
-
-	local function executeThisScript()
-		showNotify("Executing Script...", scriptItem.Nama, 2.5)
-		task.spawn(function()
-			local ok, err = pcall(function()
-				assert(loadstring(scriptItem.Script))()
-			end)
-			if not ok then
-				showNotify("Script Error", tostring(err), 3)
-			end
-		end)
-	end
-
-	runBtn.MouseButton1Click:Connect(executeThisScript)
-
-	table.insert(scriptCardEntries, {
-		Frame = card,
-		SearchKey = (scriptItem.Nama .. " " .. (scriptItem.Tag or "")):lower()
-	})
-end
-
-searchInput:GetPropertyChangedSignal("Text"):Connect(function()
+local function applySearchFilter()
 	local query = searchInput.Text:lower():gsub("^%s+", ""):gsub("%s+$", "")
 	for _, entry in ipairs(scriptCardEntries) do
 		if query == "" or string.find(entry.SearchKey, query, 1, true) then
@@ -874,6 +972,321 @@ searchInput:GetPropertyChangedSignal("Text"):Connect(function()
 			entry.Frame.Visible = false
 		end
 	end
+end
+
+renderOtherScriptList = function()
+	for _, child in ipairs(otherScroll:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	table.clear(scriptCardEntries)
+	searchInput.PlaceholderText = "🔍 Cari script (" .. #listScriptLainnya .. " tersedia)..."
+
+	for idx, scriptItem in ipairs(listScriptLainnya) do
+		local card = Instance.new("Frame")
+		card.Size = UDim2.new(1, 0, 0, 36)
+		card.BackgroundColor3 = COL_PANEL
+		card.BackgroundTransparency = 0.2
+		card.LayoutOrder = idx
+		card.ZIndex = 2
+		card.Parent = otherScroll
+		Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+		animStroke(card, 1)
+
+		local nameLbl = Instance.new("TextLabel")
+		nameLbl.Size = UDim2.new(1, -124, 1, 0)
+		nameLbl.Position = UDim2.new(0, 8, 0, 0)
+		nameLbl.BackgroundTransparency = 1
+		nameLbl.Text = scriptItem.Nama
+		nameLbl.Font = Enum.Font.GothamBold
+		nameLbl.TextSize = 9.5
+		nameLbl.TextColor3 = TEXT_MAIN
+		nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+		nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		nameLbl.ZIndex = 3
+		nameLbl.Parent = card
+
+		local tagBadge = Instance.new("TextLabel")
+		tagBadge.Size = UDim2.new(0, 40, 0, 16)
+		tagBadge.Position = UDim2.new(1, -114, 0.5, -8)
+		tagBadge.BackgroundColor3 = COL_ACCENT
+		tagBadge.BackgroundTransparency = 0.25
+		tagBadge.Text = scriptItem.Tag or "SCRIPT"
+		tagBadge.Font = Enum.Font.GothamBlack
+		tagBadge.TextSize = 7.5
+		tagBadge.TextColor3 = TEXT_MAIN
+		tagBadge.ZIndex = 3
+		tagBadge.Parent = card
+		Instance.new("UICorner", tagBadge).CornerRadius = UDim.new(0, 4)
+		themeObjectsToUpdate[tagBadge] = "BackgroundColor3"
+
+		local runBtn = Instance.new("TextButton")
+		runBtn.Size = UDim2.new(0, 38, 0, 22)
+		runBtn.Position = UDim2.new(1, -70, 0.5, -11)
+		runBtn.BackgroundColor3 = COL_ACCENT
+		runBtn.Text = "RUN"
+		runBtn.Font = Enum.Font.GothamBlack
+		runBtn.TextSize = 8.5
+		runBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		runBtn.ZIndex = 3
+		runBtn.Parent = card
+		Instance.new("UICorner", runBtn).CornerRadius = UDim.new(0, 5)
+		themeObjectsToUpdate[runBtn] = "BackgroundColor3"
+
+		local delBtn = Instance.new("TextButton")
+		delBtn.Size = UDim2.new(0, 24, 0, 22)
+		delBtn.Position = UDim2.new(1, -28, 0.5, -11)
+		delBtn.BackgroundColor3 = Color3.fromRGB(165, 45, 45)
+		delBtn.Text = "🗑"
+		delBtn.Font = Enum.Font.GothamBold
+		delBtn.TextSize = 10
+		delBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		delBtn.ZIndex = 3
+		delBtn.Parent = card
+		Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0, 5)
+
+		card.MouseEnter:Connect(function()
+			tweenService:Create(card, TweenInfo.new(0.15), {BackgroundTransparency = 0.08, BackgroundColor3 = Color3.fromRGB(28, 28, 36)}):Play()
+		end)
+		card.MouseLeave:Connect(function()
+			tweenService:Create(card, TweenInfo.new(0.15), {BackgroundTransparency = 0.2, BackgroundColor3 = COL_PANEL}):Play()
+		end)
+
+		local function executeThisScript()
+			showNotify("Executing Script...", scriptItem.Nama, 2.5)
+			task.spawn(function()
+				local ok, err = pcall(function()
+					assert(loadstring(scriptItem.Script))()
+				end)
+				if not ok then
+					showNotify("Script Error", tostring(err), 3)
+				end
+			end)
+		end
+
+		runBtn.MouseButton1Click:Connect(executeThisScript)
+		delBtn.MouseButton1Click:Connect(function()
+			deleteOtherScriptItem(scriptItem)
+		end)
+
+		table.insert(scriptCardEntries, {
+			Frame = card,
+			SearchKey = (scriptItem.Nama .. " " .. (scriptItem.Tag or "")):lower()
+		})
+	end
+
+	applySearchFilter()
+end
+
+renderOtherScriptList()
+
+searchInput:GetPropertyChangedSignal("Text"):Connect(applySearchFilter)
+
+----------------------------------------------------
+-- CONTENT: + SCRIPT (TAMBAH SCRIPT PERMANEN VIA GUI)
+----------------------------------------------------
+local addScroll = Instance.new("ScrollingFrame")
+addScroll.Size = UDim2.new(1, 0, 1, 0)
+addScroll.BackgroundTransparency = 1
+addScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+addScroll.ScrollBarThickness = 3
+addScroll.ScrollBarImageColor3 = COL_ACCENT
+addScroll.ZIndex = 2
+addScroll.Parent = managerPage
+themeObjectsToUpdate[addScroll] = "ScrollBarImageColor3"
+
+local addLayout = Instance.new("UIListLayout")
+addLayout.Padding = UDim.new(0, 5)
+addLayout.SortOrder = Enum.SortOrder.LayoutOrder
+addLayout.Parent = addScroll
+
+local addPadding = Instance.new("UIPadding")
+addPadding.PaddingTop = UDim.new(0, 4)
+addPadding.PaddingBottom = UDim.new(0, 6)
+addPadding.PaddingLeft = UDim.new(0, 2)
+addPadding.PaddingRight = UDim.new(0, 5)
+addPadding.Parent = addScroll
+
+addLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	addScroll.CanvasSize = UDim2.new(0, 0, 0, addLayout.AbsoluteContentSize.Y + 10)
+end)
+
+local selectedCategory = "Script Lainnya"
+
+local catRow = Instance.new("Frame")
+catRow.Size = UDim2.new(1, 0, 0, 26)
+catRow.BackgroundTransparency = 1
+catRow.LayoutOrder = 1
+catRow.ZIndex = 2
+catRow.Parent = addScroll
+
+local catMapBtn = Instance.new("TextButton")
+catMapBtn.Size = UDim2.new(0.48, 0, 1, 0)
+catMapBtn.Position = UDim2.new(0, 0, 0, 0)
+catMapBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+catMapBtn.Text = "Ke Tab Map"
+catMapBtn.Font = Enum.Font.GothamBold
+catMapBtn.TextSize = 9.5
+catMapBtn.TextColor3 = TEXT_SUB
+catMapBtn.ZIndex = 3
+catMapBtn.Parent = catRow
+Instance.new("UICorner", catMapBtn).CornerRadius = UDim.new(0, 5)
+animStroke(catMapBtn, 1)
+
+local catOtherBtn = Instance.new("TextButton")
+catOtherBtn.Size = UDim2.new(0.48, 0, 1, 0)
+catOtherBtn.Position = UDim2.new(0.52, 0, 0, 0)
+catOtherBtn.BackgroundColor3 = COL_ACCENT
+catOtherBtn.Text = "Script Lainnya"
+catOtherBtn.Font = Enum.Font.GothamBold
+catOtherBtn.TextSize = 9.5
+catOtherBtn.TextColor3 = TEXT_MAIN
+catOtherBtn.ZIndex = 3
+catOtherBtn.Parent = catRow
+Instance.new("UICorner", catOtherBtn).CornerRadius = UDim.new(0, 5)
+animStroke(catOtherBtn, 1)
+
+local function makeInputBox(placeholder, height, order, defaultVal)
+	local boxFrame = Instance.new("Frame")
+	boxFrame.Size = UDim2.new(1, 0, 0, height)
+	boxFrame.BackgroundColor3 = COL_PANEL
+	boxFrame.BackgroundTransparency = 0.2
+	boxFrame.LayoutOrder = order
+	boxFrame.ZIndex = 2
+	boxFrame.Parent = addScroll
+	Instance.new("UICorner", boxFrame).CornerRadius = UDim.new(0, 6)
+	animStroke(boxFrame, 1)
+
+	local tb = Instance.new("TextBox")
+	tb.Size = UDim2.new(1, -12, 1, -6)
+	tb.Position = UDim2.new(0, 6, 0, 3)
+	tb.BackgroundTransparency = 1
+	tb.Text = defaultVal or ""
+	tb.PlaceholderText = placeholder
+	tb.PlaceholderColor3 = TEXT_SUB
+	tb.TextColor3 = TEXT_MAIN
+	tb.Font = Enum.Font.GothamMedium
+	tb.TextSize = 9.5
+	tb.TextXAlignment = Enum.TextXAlignment.Left
+	tb.TextYAlignment = height > 34 and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center
+	tb.TextWrapped = true
+	tb.MultiLine = height > 34
+	tb.ClearTextOnFocus = false
+	tb.ZIndex = 3
+	tb.Parent = boxFrame
+
+	return tb
+end
+
+local nameInputBox = makeInputBox("Nama Script (contoh: ⚡ Fast Farm)", 28, 2, "")
+local tagInputBox = makeInputBox("Tag (contoh: FARM / CUSTOM)", 26, 3, "CUSTOM")
+local codeInputBox = makeInputBox("Tempel kode Lua / loadstring(...) di sini", 54, 4, "")
+
+local function refreshCategoryButtons()
+	if selectedCategory == "Map" then
+		catMapBtn.BackgroundColor3 = COL_ACCENT
+		catMapBtn.TextColor3 = TEXT_MAIN
+		catOtherBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+		catOtherBtn.TextColor3 = TEXT_SUB
+		tagInputBox.Parent.Visible = false
+	else
+		catOtherBtn.BackgroundColor3 = COL_ACCENT
+		catOtherBtn.TextColor3 = TEXT_MAIN
+		catMapBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+		catMapBtn.TextColor3 = TEXT_SUB
+		tagInputBox.Parent.Visible = true
+	end
+end
+
+catMapBtn.MouseButton1Click:Connect(function()
+	selectedCategory = "Map"
+	refreshCategoryButtons()
+end)
+
+catOtherBtn.MouseButton1Click:Connect(function()
+	selectedCategory = "Script Lainnya"
+	refreshCategoryButtons()
+end)
+
+refreshCategoryButtons()
+
+local saveScriptBtn = Instance.new("TextButton")
+saveScriptBtn.Size = UDim2.new(1, 0, 0, 30)
+saveScriptBtn.BackgroundColor3 = COL_ACCENT
+saveScriptBtn.Text = "💾 Simpan Permanen"
+saveScriptBtn.Font = Enum.Font.GothamBlack
+saveScriptBtn.TextSize = 10
+saveScriptBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveScriptBtn.LayoutOrder = 5
+saveScriptBtn.ZIndex = 2
+saveScriptBtn.Parent = addScroll
+Instance.new("UICorner", saveScriptBtn).CornerRadius = UDim.new(0, 6)
+animStroke(saveScriptBtn, 1)
+themeObjectsToUpdate[saveScriptBtn] = "BackgroundColor3"
+
+local restoreDefaultsBtn = Instance.new("TextButton")
+restoreDefaultsBtn.Size = UDim2.new(1, 0, 0, 26)
+restoreDefaultsBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+restoreDefaultsBtn.Text = "♻️ Pulihkan Script Bawaan yang Dihapus"
+restoreDefaultsBtn.Font = Enum.Font.GothamBold
+restoreDefaultsBtn.TextSize = 9
+restoreDefaultsBtn.TextColor3 = TEXT_MAIN
+restoreDefaultsBtn.LayoutOrder = 6
+restoreDefaultsBtn.ZIndex = 2
+restoreDefaultsBtn.Parent = addScroll
+Instance.new("UICorner", restoreDefaultsBtn).CornerRadius = UDim.new(0, 6)
+animStroke(restoreDefaultsBtn, 1)
+
+saveScriptBtn.MouseButton1Click:Connect(function()
+	local sName = nameInputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+	local sCode = codeInputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+	local sTag = tagInputBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+	if sTag == "" then sTag = "CUSTOM" end
+
+	if sName == "" or sCode == "" then
+		showNotify("Input Kosong", "Isi Nama Script dan Kode Script terlebih dahulu!", 2.5)
+		return
+	end
+
+	if selectedCategory == "Map" then
+		table.insert(savedData.CustomMaps, {
+			Nama = sName,
+			Script = sCode
+		})
+	else
+		table.insert(savedData.CustomScripts, {
+			Nama = sName,
+			Tag = string.upper(sTag),
+			Script = sCode
+		})
+	end
+
+	local persisted = savePersistentData()
+	rebuildLists()
+	renderMapList()
+	renderOtherScriptList()
+	refreshHomeStats()
+
+	nameInputBox.Text = ""
+	codeInputBox.Text = ""
+
+	if persisted then
+		showNotify("Tersimpan Permanen", sName .. " ditambahkan ke " .. selectedCategory .. ".", 3)
+	else
+		showNotify("Tersimpan (Sesi Ini)", "Executor tidak mendukung writefile, tersimpan selama sesi aktif.", 3)
+	end
+end)
+
+restoreDefaultsBtn.MouseButton1Click:Connect(function()
+	table.clear(savedData.DeletedDefaultMaps)
+	table.clear(savedData.DeletedDefaultScripts)
+	savePersistentData()
+	rebuildLists()
+	renderMapList()
+	renderOtherScriptList()
+	refreshHomeStats()
+	showNotify("Dipulihkan", "Semua script bawaan yang dihapus telah dikembalikan.", 2.5)
 end)
 
 ----------------------------------------------------
@@ -942,7 +1355,7 @@ local function createToggle(text, layoutOrder, defaultState, callback)
 	btn.ZIndex = 2
 	btn.Parent = frame
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-	
+
 	if defaultState then
 		themeObjectsToUpdate[btn] = "BackgroundColor3"
 	end
@@ -950,7 +1363,7 @@ local function createToggle(text, layoutOrder, defaultState, callback)
 	btn.MouseButton1Click:Connect(function()
 		defaultState = not defaultState
 		btn.Text = defaultState and "ON" or "OFF"
-		
+
 		if defaultState then
 			themeObjectsToUpdate[btn] = "BackgroundColor3"
 			btn.BackgroundColor3 = COL_ACCENT
@@ -973,7 +1386,7 @@ createToggle("🔄 Auto Reconnect", 2, true, function(state) autoReconnectEnable
 -- 1. Tombol Infinite Yield
 local iyBtn = Instance.new("TextButton")
 iyBtn.Size = UDim2.new(1, 0, 0, 32)
-iyBtn.BackgroundColor3 = COL_ACCENT 
+iyBtn.BackgroundColor3 = COL_ACCENT
 iyBtn.Text = "⚡ Infinite Yield"
 iyBtn.Font = Enum.Font.GothamBold
 iyBtn.TextSize = 11
@@ -995,7 +1408,7 @@ end)
 -- 2. Tombol Official Wyborn Script
 local wybornBtn = Instance.new("TextButton")
 wybornBtn.Size = UDim2.new(1, 0, 0, 32)
-wybornBtn.BackgroundColor3 = COL_ACCENT 
+wybornBtn.BackgroundColor3 = COL_ACCENT
 wybornBtn.Text = "🛡️ Official Wyborn Script"
 wybornBtn.Font = Enum.Font.GothamBold
 wybornBtn.TextSize = 11
@@ -1017,7 +1430,7 @@ end)
 -- 3. Tombol Koordinat
 local koordinatBtn = Instance.new("TextButton")
 koordinatBtn.Size = UDim2.new(1, 0, 0, 32)
-koordinatBtn.BackgroundColor3 = COL_ACCENT 
+koordinatBtn.BackgroundColor3 = COL_ACCENT
 koordinatBtn.Text = "📍 Koordinat Script"
 koordinatBtn.Font = Enum.Font.GothamBold
 koordinatBtn.TextSize = 11
@@ -1039,7 +1452,7 @@ end)
 -- 4. Tombol Pencari Objek
 local pencariObjekBtn = Instance.new("TextButton")
 pencariObjekBtn.Size = UDim2.new(1, 0, 0, 32)
-pencariObjekBtn.BackgroundColor3 = COL_ACCENT 
+pencariObjekBtn.BackgroundColor3 = COL_ACCENT
 pencariObjekBtn.Text = "🔎 Pencari Objek"
 pencariObjekBtn.Font = Enum.Font.GothamBold
 pencariObjekBtn.TextSize = 11
@@ -1063,7 +1476,7 @@ end)
 -- Tombol Tambahan untuk Teleport
 local teleportBtn = Instance.new("TextButton")
 teleportBtn.Size = UDim2.new(1, 0, 0, 32)
-teleportBtn.BackgroundColor3 = COL_ACCENT 
+teleportBtn.BackgroundColor3 = COL_ACCENT
 teleportBtn.Text = "🚀 Open Teleport Hub"
 teleportBtn.Font = Enum.Font.GothamBold
 teleportBtn.TextSize = 11
@@ -1085,7 +1498,7 @@ end)
 -- Tombol Tambahan untuk Remote Detector
 local remoteBtn = Instance.new("TextButton")
 remoteBtn.Size = UDim2.new(1, 0, 0, 32)
-remoteBtn.BackgroundColor3 = COL_ACCENT 
+remoteBtn.BackgroundColor3 = COL_ACCENT
 remoteBtn.Text = "🔍 Open Remote Detector"
 remoteBtn.Font = Enum.Font.GothamBold
 remoteBtn.TextSize = 11
@@ -1123,7 +1536,7 @@ themeObjectsToUpdate[allServerBtn] = "BackgroundColor3"
 
 allServerBtn.MouseButton1Click:Connect(function()
 	showNotify("All Server", "Membuka daftar server publik...", 2)
-	
+
 	local serverGui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
 	serverGui.Name = "VirgoboyAllServerGui"
 	serverGui.ResetOnSpawn = false
@@ -1180,9 +1593,8 @@ allServerBtn.MouseButton1Click:Connect(function()
 	end)
 
 	task.spawn(function()
-		local HttpService = game:GetService("HttpService")
 		local TeleportService = game:GetService("TeleportService")
-		
+
 		local success, result = pcall(function()
 			local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
 			local response = request({Url = url, Method = "GET"})
@@ -1200,9 +1612,9 @@ allServerBtn.MouseButton1Click:Connect(function()
 				sBtn.TextSize = 11
 				sBtn.TextColor3 = srv.id == game.JobId and Color3.fromRGB(100, 255, 150) or TEXT_MAIN
 				sBtn.TextXAlignment = Enum.TextXAlignment.Left
-				
+
 				Instance.new("UICorner", sBtn).CornerRadius = UDim.new(0, 6)
-				
+
 				sBtn.MouseButton1Click:Connect(function()
 					if srv.id ~= game.JobId then
 						showNotify("Teleporting", "Menghubungkan ke server terpilih...", 3)
@@ -1229,7 +1641,7 @@ local hopBtn = Instance.new("TextButton")
 local visitedServers = {}
 table.insert(visitedServers, game.JobId)
 hopBtn.Size = UDim2.new(1, 0, 0, 32)
-hopBtn.BackgroundColor3 = COL_ACCENT 
+hopBtn.BackgroundColor3 = COL_ACCENT
 hopBtn.Text = "🔄 Smart Server Hop"
 hopBtn.Font = Enum.Font.GothamBold
 hopBtn.TextSize = 11
@@ -1243,11 +1655,10 @@ themeObjectsToUpdate[hopBtn] = "BackgroundColor3"
 
 hopBtn.MouseButton1Click:Connect(function()
 	showNotify("Server Hop", "Mencari server paling ramai...", 2)
-	
-	local HttpService = game:GetService("HttpService")
+
 	local TeleportService = game:GetService("TeleportService")
 	local Players = game:GetService("Players")
-	
+
 	local function getServerList()
 		local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"
 		local response = request({Url = url, Method = "GET"})
@@ -1263,7 +1674,7 @@ hopBtn.MouseButton1Click:Connect(function()
 			end
 		end
 	end
-	
+
 	TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
 end)
 -- ====================================================
@@ -1290,7 +1701,6 @@ autoRefundBtn.MouseButton1Click:Connect(function()
 	end)
 end)
 -- ====================================================
--- ====================================================
 --  TOMBOL FAKE PURCHASE (MENU SETTING)
 -- ====================================================
 local fakePurchaseBtn = Instance.new("TextButton")
@@ -1309,7 +1719,7 @@ themeObjectsToUpdate[fakePurchaseBtn] = "BackgroundColor3"
 
 fakePurchaseBtn.MouseButton1Click:Connect(function()
 	showNotify("Fake Purchase", "Membuka menu Fake Purchase...", 2)
-	
+
 	local fakeGui = Instance.new("ScreenGui", localPlayer:WaitForChild("PlayerGui"))
 	fakeGui.Name = "AxoltaPurchaseFireIce"
 	fakeGui.ResetOnSpawn = false
@@ -1338,15 +1748,15 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 		end
 	end)
 
-	local title = Instance.new("TextLabel", frame)
-	title.Text = "🔥 FAKE PURCHASE ❄️"
-	title.Size = UDim2.new(1, -40, 0, 25)
-	title.Position = UDim2.new(0, 12, 0, 8)
-	title.BackgroundTransparency = 1
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 16
-	title.TextColor3 = Color3.fromRGB(100, 220, 255)
-	title.TextXAlignment = Enum.TextXAlignment.Left
+	local titleLbl = Instance.new("TextLabel", frame)
+	titleLbl.Text = "🔥 FAKE PURCHASE ❄️"
+	titleLbl.Size = UDim2.new(1, -40, 0, 25)
+	titleLbl.Position = UDim2.new(0, 12, 0, 8)
+	titleLbl.BackgroundTransparency = 1
+	titleLbl.Font = Enum.Font.GothamBold
+	titleLbl.TextSize = 16
+	titleLbl.TextColor3 = Color3.fromRGB(100, 220, 255)
+	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 	local ownerLabel = Instance.new("TextLabel", frame)
 	ownerLabel.Text = "Masukan ID hasil beli pake RBX"
@@ -1377,24 +1787,24 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 		b.TextColor3 = Color3.fromRGB(220, 240, 255)
 		b.Font = Enum.Font.Gotham
 		b.TextSize = 13
-		
+
 		local corner = Instance.new("UICorner", b)
 		corner.CornerRadius = UDim.new(0, 8)
-		
+
 		local stroke = Instance.new("UIStroke", b)
 		stroke.Color = Color3.fromRGB(50, 100, 150)
 		stroke.Thickness = 1
-		
+
 		b.Focused:Connect(function()
 			if b.Text == text then b.Text = "" end
 			stroke.Color = Color3.fromRGB(255, 100, 50)
 		end)
-		
+
 		b.FocusLost:Connect(function()
 			if b.Text == "" then b.Text = text end
 			stroke.Color = Color3.fromRGB(50, 100, 150)
 		end)
-		
+
 		return b
 	end
 
@@ -1438,21 +1848,21 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 		b.Font = Enum.Font.GothamBold
 		b.TextSize = 13
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
-		
+
 		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-		
+
 		b.MouseEnter:Connect(function()
 			tweenService:Create(b, TweenInfo.new(0.2), {
 				BackgroundColor3 = isFire and Color3.fromRGB(220, 60, 60) or Color3.fromRGB(50, 150, 240)
 			}):Play()
 		end)
-		
+
 		b.MouseLeave:Connect(function()
 			tweenService:Create(b, TweenInfo.new(0.2), {
 				BackgroundColor3 = isFire and Color3.fromRGB(180, 40, 40) or Color3.fromRGB(30, 120, 200)
 			}):Play()
 		end)
-		
+
 		return b
 	end
 
@@ -1467,21 +1877,21 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 	local function showFakeNotification(assetId, name, success)
 		if activeNotifs >= MAX_NOTIFS then return end
 		activeNotifs += 1
-		
+
 		local notif = Instance.new("Frame", fakeGui)
 		notif.Size = UDim2.new(0, 300, 0, 60)
 		notif.BackgroundColor3 = success and Color3.fromRGB(20, 60, 40) or Color3.fromRGB(70, 25, 25)
 		notif.BorderSizePixel = 0
 		notif.ZIndex = 50
-		
+
 		Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
 		local stroke = Instance.new("UIStroke", notif)
 		stroke.Color = success and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(255, 50, 50)
 		stroke.Thickness = 1.5
-		
+
 		local startY = 0.82
 		notif.Position = UDim2.new(0.5, -150, startY, 0)
-		
+
 		local thumb = Instance.new("ImageLabel", notif)
 		thumb.Size = UDim2.new(0, 46, 0, 46)
 		thumb.Position = UDim2.new(0, 8, 0.5, -23)
@@ -1489,7 +1899,7 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 		thumb.Image = "rbxthumb://type=Asset&id="..tostring(assetId).."&w=420&h=420"
 		thumb.ZIndex = 51
 		Instance.new("UICorner", thumb).CornerRadius = UDim.new(0, 8)
-		
+
 		local lbl = Instance.new("TextLabel", notif)
 		lbl.Size = UDim2.new(1, -66, 1, -12)
 		lbl.Position = UDim2.new(0, 62, 0, 6)
@@ -1502,14 +1912,14 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
 		lbl.ZIndex = 51
 		lbl.Text = (success and "❄️ Purchased: " or "🔥 Failed: ") .. tostring(name)
-		
+
 		local targetPos = UDim2.new(0.5, -150, startY - NOTIF_MOVE, 0)
 		local tween = tweenService:Create(notif, TweenInfo.new(NOTIF_LIFETIME, Enum.EasingStyle.Linear), {Position = targetPos})
 		tween:Play()
-		
+
 		task.delay(NOTIF_LIFETIME, function()
-			if notif and notif.Parent then 
-				notif:Destroy() 
+			if notif and notif.Parent then
+				notif:Destroy()
 				activeNotifs -= 1
 			end
 		end)
@@ -1522,14 +1932,14 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 	local function purchaseUGC()
 		local idStr = idBox.Text:gsub("%s+", "")
 		local id = tonumber(idStr)
-		if not id then 
+		if not id then
 			showFakeNotification(0, "Invalid ID!", false)
-			return 
+			return
 		end
-		
+
 		local name = cachedName
 		local price = cachedPrice
-		
+
 		if id ~= lastId then
 			local success, info = pcall(function()
 				return MarketplaceService:GetProductInfo(id)
@@ -1547,7 +1957,7 @@ fakePurchaseBtn.MouseButton1Click:Connect(function()
 			end
 			lastId = id
 		end
-		
+
 		pcall(function()
 			MarketplaceService:SignalPromptPurchaseFinished(localPlayer, id, true)
 		end)
@@ -1623,13 +2033,13 @@ for _, tName in ipairs(themeList) do
 	cBtn.ZIndex = 2
 	cBtn.Parent = btnContainer
 	Instance.new("UICorner", cBtn).CornerRadius = UDim.new(0, 4)
-	
+
 	if tName == currentThemeName then
 		activeColorIndicator.Thickness = 1.5
 		activeColorIndicator.Color = Color3.new(1, 1, 1)
 		activeColorIndicator.Parent = cBtn
 	end
-	
+
 	cBtn.MouseButton1Click:Connect(function()
 		activeColorIndicator.Parent = cBtn
 		updateTheme(tName)
@@ -1698,13 +2108,13 @@ local function updateSlider(inputObj)
 	local trackWidth = sliderTrack.AbsoluteSize.X
 	local relativeX = math.clamp(inputObj.Position.X - sliderTrack.AbsolutePosition.X, 0, trackWidth)
 	local percentage = relativeX / trackWidth
-	
+
 	sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
 	sliderBtn.Position = UDim2.new(percentage, -7, 0.5, -7)
-	
+
 	local imageTrans = 1 - percentage
 	mainBgImage.ImageTransparency = imageTrans
-	
+
 	sliderLabel.Text = "👁 Transparansi Background: " .. math.floor(percentage * 100) .. "%"
 end
 
@@ -1752,7 +2162,7 @@ end)
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(1, 0, 0, 30)
 creditLabel.BackgroundTransparency = 1
-creditLabel.Text = "Virgoboy Hub © 2026\nUI Engine Modded with Auto-List System"
+creditLabel.Text = "Virgoboy Hub © 2026\nUI Engine Modded with Auto-List & Persistent Storage"
 creditLabel.Font = Enum.Font.GothamMedium
 creditLabel.TextSize = 9
 creditLabel.TextColor3 = TEXT_SUB
@@ -1797,7 +2207,7 @@ end)
 ----------------------------------------------------
 do
 	local dragging, dragStart, startPos = false, nil, nil
-	
+
 	local function initDrag(inputObj)
 		local abs = main.AbsolutePosition
 		main.Position = UDim2.new(0, abs.X, 0, abs.Y)
@@ -1811,13 +2221,13 @@ do
 			initDrag(i)
 		end
 	end)
-	
+
 	minIcon.InputBegan:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 			initDrag(i)
 		end
 	end)
-	
+
 	userInputService.InputChanged:Connect(function(i)
 		if not dragging then return end
 		if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
@@ -1832,7 +2242,7 @@ do
 			)
 		end
 	end)
-	
+
 	userInputService.InputEnded:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
