@@ -578,4 +578,323 @@ BrightBtn.MouseButton1Click:Connect(function()
         originalLighting.Brightness = Lighting.Brightness
         originalLighting.ClockTime = Lighting.ClockTime
         originalLighting.FogEnd = Lighting.FogEnd
-        originalLightin
+        originalLighting.GlobalShadows = Lighting.GlobalShadows
+        originalLighting.Ambient = Lighting.Ambient
+        
+        brightConnection = game:GetService("RunService").RenderStepped:Connect(function()
+            if fullbrightEnabled then
+                Lighting.Brightness = 2
+                Lighting.ClockTime = 14
+                Lighting.FogEnd = 100000
+                Lighting.GlobalShadows = false
+                Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            end
+        end)
+    else
+        BrightBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        BrightBtn.Text = "Terang: OFF"
+        
+        if brightConnection then
+            brightConnection:Disconnect()
+            brightConnection = nil
+        end
+        
+        Lighting.Brightness = originalLighting.Brightness
+        Lighting.ClockTime = originalLighting.ClockTime
+        Lighting.FogEnd = originalLighting.FogEnd
+        Lighting.GlobalShadows = originalLighting.GlobalShadows
+        Lighting.Ambient = originalLighting.Ambient
+    end
+end)
+
+----------------------------------------------------
+-- 6. WALKFLING
+----------------------------------------------------
+local WalkFlingBtn = createButton("WalkFling: OFF")
+WalkFlingBtn.Parent = Container
+
+local walkFlingEnabled = false
+local flingConnection
+
+WalkFlingBtn.MouseButton1Click:Connect(function()
+    walkFlingEnabled = not walkFlingEnabled
+    if walkFlingEnabled then
+        WalkFlingBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        WalkFlingBtn.Text = "WalkFling: ON"
+        
+        flingConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            local character = player.Character
+            if not character then return end
+            local root = character:FindFirstChild("HumanoidRootPart")
+            
+            if root and walkFlingEnabled then
+                local oldVel = root.AssemblyLinearVelocity
+                root.AssemblyLinearVelocity = Vector3.new(10000, 10000, 10000)
+                game:GetService("RunService").RenderStepped:Wait()
+                root.AssemblyLinearVelocity = oldVel
+            end
+        end)
+    else
+        WalkFlingBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        WalkFlingBtn.Text = "WalkFling: OFF"
+        if flingConnection then
+            flingConnection:Disconnect()
+            flingConnection = nil
+        end
+    end
+end)
+
+----------------------------------------------------
+-- 7. INSTANT INTERACT (HANYA AKTIF SAAT DITEKAN MANUAL / MANUALLY PRESSED)
+----------------------------------------------------
+local InstantInteractBtn = createButton("Instant Interact: OFF")
+InstantInteractBtn.Parent = Container
+
+local instantInteract = false
+
+InstantInteractBtn.MouseButton1Click:Connect(function()
+    instantInteract = not instantInteract
+    if instantInteract then
+        InstantInteractBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        InstantInteractBtn.Text = "Instant Interact: ON"
+    else
+        InstantInteractBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        InstantInteractBtn.Text = "Instant Interact: OFF"
+    end
+end)
+
+-- Mengubah HoldDuration menjadi 0 hanya ketika kamu mulai menekan tombol 'E'
+ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+    if instantInteract then
+        prompt.HoldDuration = 0
+        if fireproximityprompt then
+            fireproximityprompt(prompt)
+        end
+    end
+end)
+
+local ProxiReachBtn = createButton("Inf Proximity Range: OFF")
+ProxiReachBtn.Parent = Container
+
+local proxiReach = false
+local defaultProxiData = {}
+local proxConnections = {}
+
+ProxiReachBtn.MouseButton1Click:Connect(function()
+    proxiReach = not proxiReach
+    if proxiReach then
+        ProxiReachBtn.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
+        ProxiReachBtn.Text = "Inf Proximity Range: ON"
+    else
+        ProxiReachBtn.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+        ProxiReachBtn.Text = "Inf Proximity Range: OFF"
+        
+        for prompt, data in pairs(defaultProxiData) do
+            if prompt and prompt.Parent then
+                prompt.MaxActivationDistance = data.Distance
+                prompt.RequiresLineOfSight = data.Sight
+            end
+        end
+        defaultProxiData = {}
+        for _, conn in pairs(proxConnections) do
+            conn:Disconnect()
+        end
+        proxConnections = {}
+    end
+end)
+
+-- Auto Teleport Temp / Auto Trigger bypass untuk menyiasati Server Distance Check
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if proxiReach then
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v:IsA("ProximityPrompt") then
+                    if not defaultProxiData[v] then
+                        defaultProxiData[v] = {
+                            Distance = v.MaxActivationDistance,
+                            Sight = v.RequiresLineOfSight
+                        }
+                    end
+                    v.MaxActivationDistance = 99999
+                    v.RequiresLineOfSight = false
+                    
+                    if not proxConnections[v] then
+                        proxConnections[v] = v.Triggered:Connect(function(playerWhoTriggered)
+                            if playerWhoTriggered == player then
+                                if fireproximityprompt then
+                                    fireproximityprompt(v)
+                                else
+                                    local char = player.Character
+                                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                                    local targetPart = v.Parent:IsA("BasePart") and v.Parent or v.Parent:FindFirstChildWhichIsA("BasePart")
+                                    if root and targetPart then
+                                        local oldCFrame = root.CFrame
+                                        root.CFrame = targetPart.CFrame
+                                        task.wait(0.1)
+                                        root.CFrame = oldCFrame
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+----------------------------------------------------
+-- 8. FITUR FIRETOUCHINTEREST & FIRECLICKDETECTOR
+----------------------------------------------------
+local FireActionFrame = Instance.new("Frame")
+FireActionFrame.Parent = Container
+FireActionFrame.Size = UDim2.new(1, 0, 0, 32)
+FireActionFrame.BackgroundTransparency = 1
+
+local FireTouchBtn = createButton("Fire Touch", Color3.fromRGB(37, 99, 235))
+FireTouchBtn.Parent = FireActionFrame
+FireTouchBtn.Size = UDim2.new(0.5, -4, 1, 0)
+
+local FireCDBtn = createButton("Fire Click", Color3.fromRGB(37, 99, 235))
+FireCDBtn.Parent = FireActionFrame
+FireCDBtn.Position = UDim2.new(0.5, 4, 0, 0)
+FireCDBtn.Size = UDim2.new(0.5, -4, 1, 0)
+
+FireTouchBtn.MouseButton1Click:Connect(function()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local touchInterestCount = 0
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("TouchTransmitter") and v.Parent and v.Parent:IsA("BasePart") then
+            if firetouchinterest then
+                firetouchinterest(root, v.Parent, 0)
+                task.wait()
+                firetouchinterest(root, v.Parent, 1)
+                touchInterestCount = touchInterestCount + 1
+            end
+        end
+    end
+    
+    FireTouchBtn.Text = "Fired (" .. tostring(touchInterestCount) .. ")"
+    task.wait(1.5)
+    FireTouchBtn.Text = "Fire Touch"
+end)
+
+FireCDBtn.MouseButton1Click:Connect(function()
+    local cdCount = 0
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ClickDetector") then
+            if fireclickdetector then
+                fireclickdetector(v)
+                cdCount = cdCount + 1
+            end
+        end
+    end
+    
+    FireCDBtn.Text = "Fired (" .. tostring(cdCount) .. ")"
+    task.wait(1.5)
+    FireCDBtn.Text = "Fire Click"
+end)
+
+----------------------------------------------------
+-- 9. SERVER CONTROL (REJOIN, SMALL SERVER & SERVER HOP)
+----------------------------------------------------
+local RejoinBtn = createButton("Rejoin Server", Color3.fromRGB(16, 185, 129))
+RejoinBtn.Parent = Container
+
+local ServerFrame = Instance.new("Frame")
+ServerFrame.Parent = Container
+ServerFrame.Size = UDim2.new(1, 0, 0, 32)
+ServerFrame.BackgroundTransparency = 1
+
+local SmallServerBtn = createButton("Small Server", Color3.fromRGB(37, 99, 235))
+SmallServerBtn.Parent = ServerFrame
+SmallServerBtn.Size = UDim2.new(0.5, -4, 1, 0)
+
+local ServerHopBtn = createButton("Server Hop", Color3.fromRGB(37, 99, 235))
+ServerHopBtn.Parent = ServerFrame
+ServerHopBtn.Position = UDim2.new(0.5, 4, 0, 0)
+ServerHopBtn.Size = UDim2.new(0.5, -4, 1, 0)
+
+local HttpService = game:GetService("HttpService")
+local PlaceId = game.PlaceId
+local JobId = game.JobId
+
+-- Event Rejoin
+RejoinBtn.MouseButton1Click:Connect(function()
+    RejoinBtn.Text = "Rejoining..."
+    rejoinGame()
+end)
+
+local function switchServer(findLowest)
+    local servers = {}
+    local req = request or http_request or (syn and syn.request) or (http and http.request)
+    
+    if req then
+        local api = "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=" .. (findLowest and "Asc" or "Desc") .. "&limit=100"
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(req({Url = api}).Body)
+        end)
+        
+        if success and result and result.data then
+            for _, v in ipairs(result.data) do
+                if type(v) == "table" and v.playing and v.maxPlayers and v.playing < v.maxPlayers and v.id ~= JobId then
+                    table.insert(servers, v.id)
+                end
+            end
+        end
+    end
+
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(PlaceId, servers[findLowest and 1 or math.random(1, #servers)], player)
+    else
+        TeleportService:Teleport(PlaceId, player)
+    end
+end
+
+SmallServerBtn.MouseButton1Click:Connect(function()
+    SmallServerBtn.Text = "Searching..."
+    switchServer(true)
+end)
+
+ServerHopBtn.MouseButton1Click:Connect(function()
+    ServerHopBtn.Text = "Hopping..."
+    switchServer(false)
+end)
+
+----------------------------------------------------
+-- CLOSE & MINIMIZE CONTROL
+----------------------------------------------------
+CloseBtn.MouseButton1Click:Connect(function()
+    if speedConnection then speedConnection:Disconnect() end
+    if nowe then toggleFly() end
+    if flingConnection then flingConnection:Disconnect() end
+    if brightConnection then brightConnection:Disconnect() end
+    
+    clip()
+    
+    Lighting.Brightness = originalLighting.Brightness
+    Lighting.ClockTime = originalLighting.ClockTime
+    Lighting.FogEnd = originalLighting.FogEnd
+    Lighting.GlobalShadows = originalLighting.GlobalShadows
+    Lighting.Ambient = originalLighting.Ambient
+    
+    ScreenGui:Destroy()
+end)
+
+local minimized = false
+MinimizeBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    if minimized then
+        Container.Visible = false
+        MainFrame.Size = UDim2.new(0, 260, 0, 32)
+        MinimizeBtn.Text = "+"
+    else
+        Container.Visible = true
+        MainFrame.Size = UDim2.new(0, 260, 0, 475)
+        MinimizeBtn.Text = "-"
+    end
+end)
